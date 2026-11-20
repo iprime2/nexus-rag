@@ -1,0 +1,75 @@
+[project]
+name = "nexus-rag"
+version = "0.1.0"
+description = "Distributed enterprise Retrieval-Augmented Generation platform"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.165.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# The project is called "nexus-rag", but the importable package is "app".
+packages = ["app"]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Design docs contain illustrative pseudo-code in Markdown; don't lint or reformat it.
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle errors / warnings
+    "F",       # pyflakes: unused imports, undefined names
+    "I",       # isort: import ordering
+    "B",       # flake8-bugbear: likely bugs (mutable defaults, etc.)
+    "UP",      # pyupgrade: modern syntax for the target Python version
+    "SIM",     # flake8-simplify
+    "ASYNC",   # flake8-async: blocking calls inside async functions
+    "S",       # flake8-bandit: common security issues
+    "N",       # pep8-naming
+    "RUF",     # ruff-specific rules
+]
+
+[tool.ruff.lint.per-file-ignores]
+# `assert` is how pytest checks things; bandit's S101 would flag every test.
+"tests/**" = ["S101"]
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+files = ["app", "tests"]
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+markers = [
+    "integration: needs real services (Postgres, Redis, Qdrant, S3)",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mypy>=2.4.1",
+    "pre-commit>=4.7.0",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.6",
+]

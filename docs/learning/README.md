@@ -8,4 +8,4 @@ One file per phase. Each explains the concepts that phase relies on, in plain la
 | Phase | Notes |
 |---|---|
 | 0: System design | [00-system-design-concepts.md](00-system-design-concepts.md) |
-| 1: Foundation | written during Phase 1 |
+| 1: Foundation | [01-foundation-concepts.md](01-foundation-concepts.md) (written step by step) |
