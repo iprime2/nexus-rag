@@ -1,6 +1,6 @@
 # ADR-0004: Postgres as the source of truth for job state
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-20)
 - **Date:** 2026-11-20
 
 ## Context

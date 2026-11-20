@@ -1,6 +1,6 @@
 # ADR-0010: Two-stage worker pipeline
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-20)
 - **Date:** 2026-11-20
 
 ## Context
