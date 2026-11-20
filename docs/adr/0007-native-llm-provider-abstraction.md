@@ -1,6 +1,6 @@
 # ADR-0007: Native LLM provider abstraction
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-20)
 - **Date:** 2026-11-20
 
 ## Context

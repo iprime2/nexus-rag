@@ -1,6 +1,6 @@
 # ADR-0003: Qdrant for vectors, Postgres for chunk text
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-20)
 - **Date:** 2026-11-20
 
 ## Context

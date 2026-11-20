@@ -1,6 +1,6 @@
 # ADR-0006: Hybrid retrieval with Postgres FTS and Reciprocal Rank Fusion
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-20)
 - **Date:** 2026-11-20
 
 ## Context

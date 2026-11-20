@@ -1,6 +1,6 @@
 # ADR-0009: Scope relative to the reference architecture diagram
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-20)
 - **Date:** 2026-11-20
 
 ## Context

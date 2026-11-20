@@ -1,6 +1,6 @@
 # NexusRAG — System Design Document
 
-> **Status: Proposed. Awaiting owner approval (Phase 0).**
+> **Status: Accepted by the project owner on 2026-11-20 (Phase 0 complete).**
 > This is the entry point. It summarizes the design and the cross-cutting concerns, and links to the detailed documents.
 
 | Document | Contents |

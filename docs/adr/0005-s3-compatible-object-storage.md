@@ -1,6 +1,6 @@
 # ADR-0005: S3-compatible object storage everywhere
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-20)
 - **Date:** 2026-11-20
 
 ## Context
