@@ -71,4 +71,26 @@ The long-term vision diagram (including graph retrieval, agents and self-hosted 
 
 ## Getting started
 
-_Available from Phase 1._
+Requirements: [uv](https://docs.astral.sh/uv/) (it installs the right Python version for you).
+
+```bash
+uv sync
+```
+
+```bash
+uv run pre-commit install
+```
+
+```bash
+uv run uvicorn app.main:create_app --factory --reload
+```
+
+Then open <http://localhost:8000/docs> (interactive API docs) or <http://localhost:8000/health/live>.
+
+### Quality checks
+
+```bash
+uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
+```
+
+Docker Compose for the full stack arrives in Phase 1, step 1.4.
