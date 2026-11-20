@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.165.0",
+    "pydantic-settings>=2.16.3",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -45,9 +46,16 @@ select = [
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
 python_version = "3.12"
+plugins = ["pydantic.mypy"]
 strict = true
 warn_unreachable = true
 files = ["app", "tests"]
+
+[tool.pydantic-mypy]
+# Type-check the keyword arguments passed to model constructors, e.g. Settings(debug="yes").
+init_typed = true
+init_forbid_extra = true
+warn_required_dynamic_aliases = true
 
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]

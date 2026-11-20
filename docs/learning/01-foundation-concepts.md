@@ -69,3 +69,42 @@ One section per step. Each has the concepts, how the code works, what breaks if 
 - **"Why use an application factory instead of a global `app` object?"** No import-time side effects; isolated test instances; configuration can be chosen per instance (per environment or process role).
 - **"What's the difference between liveness and readiness probes, and what goes wrong if you mix them up?"** See the table above. The restart-storm scenario is the answer interviewers want.
 - **"Why commit a lockfile? Isn't `pyproject.toml` enough?"** `pyproject.toml` has version *ranges*. Without a lock, two installs on different days can resolve different transitive versions, so "works on my machine" bugs appear and builds aren't reproducible.
+
+---
+
+## Step 1.2: Typed configuration
+
+### The idea
+| Principle | How NexusRAG does it | NestJS equivalent |
+|---|---|---|
+| Config from the environment ([12-factor](https://12factor.net/config)) | `NEXUS_*` env vars, optional `.env` for local development | `ConfigModule.forRoot()` |
+| Validate once, at startup | `Settings(BaseSettings)`: type hints are the schema | Joi / zod `validationSchema` |
+| **Fail fast** | Bad value → `ValidationError` → the process exits before serving traffic | `validationSchema` throwing on boot |
+| One source of truth | `get_settings()` (cached singleton), or inject `Settings` into `create_app()` | `ConfigService` injection |
+
+### How it works (`app/core/config.py`)
+- **Precedence:** init kwargs > real env vars > `.env` file > defaults. Production sets real env vars (ECS / Secrets Manager); `.env` is only a local convenience.
+- **Type coercion:** `"true"` → `True`, `"staging"` → `Environment.STAGING`. An invalid value is an error, never a silent default.
+- **`extra="forbid"`:** a typo in `.env` (`NEXUS_DEUBG`) fails startup instead of being silently ignored. Silently ignored typos are a classic "but I set that flag!" bug.
+- **`model_validator`:** cross-field rules (`production` + `debug` is rejected). Each field alone is valid; the combination isn't.
+- **`frozen=True`:** settings can't be mutated at runtime, so no hidden global state changes.
+- **`SecretStr`** (from step 1.5): prints `**********`; the real value only via `.get_secret_value()`. This keeps secrets out of logs, tracebacks and error pages.
+
+### Testability
+Tests build `Settings(_env_file=None, ...)` explicitly and pass it to `create_app(settings)`. **What breaks otherwise:** tests silently read a developer's `.env`, so they pass on one laptop and fail in CI.
+
+### What breaks if done wrong
+| Mistake | Consequence | Test |
+|---|---|---|
+| Reading `os.environ` all over the codebase | Untyped strings, scattered defaults, typos fail at request time | (design rule) |
+| Lazy validation | The app boots "healthy" and fails on the first real request | `test_create_app_fails_fast_on_invalid_environment` |
+| Ignoring unknown keys | A misspelled flag silently does nothing | `test_unknown_key_in_dotenv_fails_fast` |
+| Debug on in production | Stack traces leak internals to users | `test_debug_is_rejected_in_production` |
+
+### Exercises
+1. Run `NEXUS_ENVIRONMENT=prod uv run uvicorn app.main:create_app --factory` and read the error. Which part tells you the allowed values?
+2. Add `api_title: str = "NexusRAG"` to `Settings`, use it in `create_app`, and set it via `.env`. Which test would you add?
+
+### Interview questions
+- **"How do you manage configuration and secrets across environments?"** Env vars validated into a typed object at startup; secrets come from a secret manager into env vars, typed as `SecretStr`; no secrets in code or images.
+- **"Why fail fast at startup?"** A misconfigured instance should never pass its readiness check and take traffic. Crashing at deploy time is visible and cheap; failing at request time is neither.

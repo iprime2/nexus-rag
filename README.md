@@ -82,6 +82,10 @@ uv run pre-commit install
 ```
 
 ```bash
+cp .env.example .env
+```
+
+```bash
 uv run uvicorn app.main:create_app --factory --reload
 ```
 

@@ -15,6 +15,8 @@ Whenever you design, write or change code:
 6. **Interview angle:** 1–3 questions an interviewer could ask about this piece, with short answer sketches.
 7. Record durable notes in `docs/learning/` (one file per phase) so the learning outlives the chat.
 
+**Communication style (owner preference):** keep answers brief. Prefer tables and short bullets over long prose. Put the depth in `docs/learning/`, not in chat.
+
 When the owner asks a question, teach the underlying engineering concept, don't just hand over code. If the owner proposes a flawed design, challenge it and explain the consequences.
 
 ## Development workflow
