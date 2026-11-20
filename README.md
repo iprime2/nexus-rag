@@ -10,14 +10,14 @@ The focus is the engineering a production RAG system needs and a demo skips:
 - **Hard tenant isolation:** enforced by credentials, database constraints, mandatory vector filters and post-retrieval verification. Never by the LLM.
 - **Measured quality and performance:** a reproducible evaluation set and benchmarks. No unmeasured claims.
 
-> **Status:** Phase 0 (system design) is under review. No application code yet. See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
+> **Status:** Phase 1 (project foundation) in progress. See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     C["Clients"] --> API["FastAPI<br/>auth · upload · query (SSE)"]
-    API --> OS[("S3 / MinIO<br/>originals")]
+    API --> OS[("S3 / SeaweedFS<br/>originals")]
     API --> PG[("PostgreSQL<br/>metadata · jobs · chunks · FTS")]
     API -. enqueue .-> R[["Redis<br/>Celery broker"]]
     R -.-> WX["Extract workers<br/>parse · clean · chunk"]
@@ -34,7 +34,7 @@ flowchart LR
 |---|---|
 | API | Python 3.12+, FastAPI, Pydantic, Uvicorn |
 | Background processing | Celery, Redis |
-| Data | PostgreSQL (SQLAlchemy 2, Alembic), Qdrant, S3 / MinIO |
+| Data | PostgreSQL (SQLAlchemy 2, Alembic), Qdrant, S3 (SeaweedFS locally) |
 | AI | OpenAI, Anthropic, AWS Bedrock (behind provider interfaces); optional reranker |
 | Observability | Prometheus, Grafana, structured logs, OpenTelemetry |
 | Infrastructure | Docker Compose (local), AWS ECS / ECR / S3 / Secrets Manager / CloudWatch, Terraform |
@@ -58,8 +58,8 @@ The long-term vision diagram (including graph retrieval, agents and self-hosted 
 
 ## Roadmap
 
-0. System design ← **current**
-1. Project foundation (FastAPI, Postgres, Redis, Qdrant, Docker Compose, config, logging, tests)
+0. System design ✅
+1. Project foundation (FastAPI, Postgres, Redis, Qdrant, Docker Compose, config, logging, tests) ← **current**
 2. Document ingestion (upload, validation, Celery workers, extraction, chunking)
 3. Embeddings and vector storage
 4. Retrieval and generation (hybrid search, reranking, citations, streaming)
@@ -97,4 +97,24 @@ Then open <http://localhost:8000/docs> (interactive API docs) or <http://localho
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
 ```
 
-Docker Compose for the full stack arrives in Phase 1, step 1.4.
+### Full stack with Docker Compose
+
+Requirements: Docker with Compose v2.24+.
+
+```bash
+docker compose up -d --build
+```
+
+```bash
+docker compose ps
+```
+
+| Service | Local address | Purpose |
+|---|---|---|
+| `api` | <http://localhost:8000> | NexusRAG API |
+| `postgres` | `localhost:5432` (user/db `nexus`) | Metadata, jobs, chunks |
+| `redis` | `localhost:6379` | Celery broker (AOF, `noeviction`) |
+| `qdrant` | <http://localhost:6333/dashboard> | Vector store |
+| `object-store` | <http://localhost:8333> | S3-compatible storage (SeaweedFS) |
+
+All ports bind to `127.0.0.1`. Credentials in `docker-compose.yml` are local-only defaults; override them from your shell (e.g. `POSTGRES_PASSWORD=… docker compose up -d`). Stop with `docker compose down` (keeps data) or `docker compose down -v` (deletes data).
