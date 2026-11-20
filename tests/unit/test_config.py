@@ -101,3 +101,17 @@ async def test_docs_can_be_disabled() -> None:
         assert (await client.get("/docs")).status_code == 404
         assert (await client.get("/openapi.json")).status_code == 404
         assert (await client.get("/health/live")).status_code == 200
+
+
+def test_env_example_is_valid_and_complete() -> None:
+    """.env.example must load cleanly and document every setting."""
+    example = Path(__file__).parents[2] / ".env.example"
+
+    settings = Settings(_env_file=example)  # extra="forbid": unknown keys would fail
+
+    documented = {
+        line.split("=", 1)[0].removeprefix("NEXUS_").lower()
+        for line in example.read_text().splitlines()
+        if line.startswith("NEXUS_")
+    }
+    assert documented == set(type(settings).model_fields)
