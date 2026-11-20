@@ -14,8 +14,10 @@ no state leaks between tests. It is the same idea as NestJS's
 from fastapi import FastAPI
 
 from app import __version__
+from app.api.middleware.request_context import RequestContextMiddleware
 from app.api.routes import health
 from app.core.config import Settings, get_settings
+from app.core.logging import configure_logging
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -26,6 +28,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     before it accepts any traffic.
     """
     settings = settings or get_settings()
+    configure_logging(settings)
 
     app = FastAPI(
         title="NexusRAG",
@@ -38,5 +41,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if settings.docs_enabled else None,
     )
     app.state.settings = settings
+    app.add_middleware(RequestContextMiddleware)
     app.include_router(health.router)
     return app

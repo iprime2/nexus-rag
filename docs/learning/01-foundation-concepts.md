@@ -108,3 +108,43 @@ Tests build `Settings(_env_file=None, ...)` explicitly and pass it to `create_ap
 ### Interview questions
 - **"How do you manage configuration and secrets across environments?"** Env vars validated into a typed object at startup; secrets come from a secret manager into env vars, typed as `SecretStr`; no secrets in code or images.
 - **"Why fail fast at startup?"** A misconfigured instance should never pass its readiness check and take traffic. Crashing at deploy time is visible and cheap; failing at request time is neither.
+
+---
+
+## Step 1.3: Structured logging and request IDs
+
+### The idea
+| Concept | What it means | Node/NestJS equivalent |
+|---|---|---|
+| Structured logs | Each line is JSON key/values, so you can query `status_code>=500 AND path=/v1/query` | pino |
+| Correlation ID | One `request_id` on every line of one request, and later on its Celery tasks | `nestjs-cls` / pino-http `reqId` |
+| `contextvars` | Per-request (per asyncio task) storage, so you don't pass IDs through every function | `AsyncLocalStorage` |
+| One pipeline | Library logs (Uvicorn, later SQLAlchemy, Celery) are rendered by the same processors | pino transports |
+
+### How it works
+| File | Role |
+|---|---|
+| `app/core/logging.py` | `configure_logging()`: processors (context merge → level → logger → UTC timestamp → **redaction**) → JSON or console renderer. `ProcessorFormatter` routes stdlib records through the same chain. |
+| `app/api/middleware/request_context.py` | Reads or creates `X-Request-ID`, binds it with `bind_contextvars`, echoes it in the response, logs `request.completed` with status and duration, then clears the context. |
+| `app/core/config.py` | `NEXUS_LOG_LEVEL`, `NEXUS_LOG_FORMAT` |
+
+**Why plain ASGI middleware instead of `BaseHTTPMiddleware`:** the plain form doesn't buffer or wrap the response stream, which the SSE streaming endpoints need later.
+
+### What breaks if done wrong
+| Mistake | Consequence | Test that guards it |
+|---|---|---|
+| Trusting any incoming `X-Request-ID` | Log injection (a newline forges fake lines), huge values | `test_unsafe_incoming_request_ids_are_replaced` |
+| A global variable for the request ID | Concurrent requests overwrite each other's IDs | `test_concurrent_requests_do_not_mix_request_ids` |
+| Not clearing the context | The next log line outside a request carries a stale ID | `test_context_is_cleared_after_the_request` |
+| Logging a headers dict or config | API keys and tokens in logs, a security incident | `test_sensitive_values_are_redacted_including_nested` |
+| Multi-line tracebacks | One error becomes 30 log "events" | `test_exceptions_are_logged_as_one_structured_line` |
+
+Redaction is a **safety net**, not permission to log secrets. Also never log document text, prompts or answers (system-design §7).
+
+### Exercises
+1. Run the server with `NEXUS_LOG_FORMAT=json`, call `curl -H "X-Request-ID: my-id" localhost:8000/health/live`, and find your ID in the logs.
+2. Add `log.info("live.checked")` inside `live()`. Does it get the `request_id` automatically? Why?
+
+### Interview questions
+- **"How do you trace one user request across services?"** Correlation ID created at the edge, bound to context, returned to the client, and propagated in headers and task metadata. Later, OpenTelemetry trace IDs do the same across processes (Phase 6).
+- **"How do you keep secrets out of logs?"** Don't log raw objects; type secrets as `SecretStr`; a redaction processor as the last line of defense; tests that check the real output.

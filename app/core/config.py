@@ -14,7 +14,7 @@ error messages; the real value comes only from ``.get_secret_value()``.
 
 from enum import StrEnum
 from functools import lru_cache
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     environment: Environment = Environment.LOCAL
     debug: bool = False
     docs_enabled: bool = True
+
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    # "json": one JSON object per line, for machines (Docker, CloudWatch, Loki).
+    # "console": coloured, human-readable lines, for local development.
+    log_format: Literal["json", "console"] = "json"
 
     @model_validator(mode="after")
     def _forbid_unsafe_production_flags(self) -> Self:
