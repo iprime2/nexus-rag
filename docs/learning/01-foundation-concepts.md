@@ -252,3 +252,61 @@ The drift test was **proven to fail** by changing `String(63)` to `String(64)` w
 - **"How do you run DB migrations safely in production?"** As a separate job before the new version takes traffic; backwards-compatible changes (expand → migrate data → contract); never at app startup with multiple replicas.
 - **"Why enforce constraints in the database if the app validates already?"** Concurrency (check-then-insert races), other writers (scripts, workers), and defense in depth. The database is the last line of defense.
 - **"What's a connection pool and how do you size it?"** Reused open connections (opening one costs a TCP + TLS + auth round trip). Size so that all processes' pools fit under `max_connections`; add PgBouncer or RDS Proxy when they don't.
+
+### Q&A: does the database check unique constraints one request at a time?
+No. Postgres runs transactions in parallel and only makes them wait when they touch **the same unique key**.
+
+| Time | Transaction A | Transaction B |
+|---|---|---|
+| t1 | `INSERT slug='acme'` (not committed) | |
+| t2 | | `INSERT slug='acme'` → **waits** for A |
+| t3 | `COMMIT` | |
+| t4 | | ❌ unique violation (had A rolled back, B would succeed) |
+
+- The check is one B-tree index lookup, not a table scan. Inserts of *different* slugs never wait for each other.
+- A Python "SELECT then INSERT" check fails here: under MVCC each transaction sees a snapshot without the other's uncommitted row, so both pass the check.
+- Use `INSERT … ON CONFLICT DO NOTHING` for "create if missing".
+- Try it: two `psql` sessions, `BEGIN; INSERT …` in one, the same `INSERT` in the other (it hangs), then `COMMIT` the first.
+
+---
+
+## Step 1.6: Readiness checks
+
+### Liveness vs readiness, now both implemented
+| | `/health/live` | `/health/ready` |
+|---|---|---|
+| Checks | Nothing | Postgres (and migration version), Redis, Qdrant, S3 bucket |
+| Failure | Orchestrator restarts the container | Load balancer stops sending traffic; **no restart** |
+| Verified | Stays 200 while Redis is down | 503 while Redis is down → 200 again when it returns |
+
+### Design
+| Decision | Why |
+|---|---|
+| All checks run **concurrently** (`asyncio.gather`) | Response time ≈ slowest check, not the sum (tested: 4×0.3 s checks finish in about 0.3 s) |
+| Per-check timeout (`NEXUS_READINESS_TIMEOUT_SECONDS`, 2 s) | A *hanging* dependency is worse than a dead one; frozen Qdrant answered in 2.04 s |
+| Response shows only the error **type** | The endpoint is public; messages can include hostnames. Full details go to logs with the request ID. |
+| Postgres check compares `alembic_version` with the build's head migration | Code that expects a newer schema must not serve traffic |
+| S3 check = `head_bucket` on *our* bucket | Proves endpoint, credentials **and** bucket (tested: missing bucket, wrong secret) |
+| boto3 runs via `asyncio.to_thread` | boto3 is blocking; calling it directly would freeze the event loop. A timeout stops *waiting* but can't kill the thread, so boto3 has its own connect/read timeouts. |
+| Qdrant checked with plain `httpx` on `/readyz` | The full `qdrant-client` (gRPC, numpy) isn't needed until Phase 3 |
+| Clients created once per process, closed in `lifespan` | Connection pools are reused; no leaked sockets on shutdown |
+| `storage-init` job creates the bucket | Idempotent local bootstrap; on AWS, Terraform owns the bucket |
+| Empty env values mean "unset" (`env_ignore_empty`) | `NEXUS_REDIS_PASSWORD=` must not mean "password is the empty string" |
+
+### What breaks if done wrong
+| Mistake | Consequence |
+|---|---|
+| Dependency checks in liveness | Outage → every container restarts in a loop → slower recovery |
+| Sequential checks without timeouts | One hung dependency makes readiness hang; the load balancer's own timeout marks everything unhealthy |
+| Returning raw error messages | Leaks internal hostnames and versions to anyone |
+| Calling boto3 directly in `async def` | Every request on that worker stalls during a slow S3 call |
+| No migration check | New code serves requests against an old schema and fails on new columns |
+
+### Exercises
+1. With Compose running, `docker compose pause qdrant`, call `/health/ready`, time it, then `unpause`. Change `NEXUS_READINESS_TIMEOUT_SECONDS` and repeat.
+2. Make Postgres "behind": `docker compose exec api alembic downgrade base`. What does readiness report? Fix it with `upgrade head`.
+
+### Interview questions
+- **"Design health checks for a service with four dependencies."** Liveness has no dependencies; readiness runs concurrent checks with timeouts, exposes minimal information, and logs details. Readiness gates traffic and never triggers restarts.
+- **"How do you call blocking libraries from async Python?"** `asyncio.to_thread` / a thread pool, plus the library's own timeouts, because a thread can't be cancelled from outside.
+- **"What does the load balancer do when all instances report not ready?"** It depends on the LB. Many fail *open* (keep routing), so readiness should reflect *this instance's* ability to serve, and alerts must fire separately.

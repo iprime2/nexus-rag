@@ -1,7 +1,8 @@
 """Integration-test fixtures: a real Postgres database per test session.
 
-Connection details come from the environment (``NEXUS_POSTGRES_*``), e.g.
-the local ``docker compose up -d postgres`` or CI service containers. Each
+Connection details come from ``NEXUS_*`` environment variables or a local
+``.env`` (copy ``.env.example``), pointing at ``docker compose up -d`` services
+locally or at service containers in CI. Each
 run creates a brand-new database ``nexus_test_<random>``, migrates it with
 Alembic (the same migrations production uses), and drops it at the end. Runs
 never see each other's data, and the developer's own ``nexus`` database is
@@ -45,7 +46,7 @@ def run_alembic(settings: Settings, action: str, revision: str) -> None:
 
 @pytest.fixture(scope="session")
 def db_settings() -> Iterator[Settings]:
-    base = Settings(_env_file=None, environment=Environment.TEST)
+    base = Settings(environment=Environment.TEST)  # reads env vars and .env, if present
     test_db = f"nexus_test_{uuid.uuid4().hex[:12]}"
 
     # CREATE/DROP DATABASE can't run inside a transaction, so use AUTOCOMMIT,

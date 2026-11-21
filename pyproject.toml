@@ -6,9 +6,12 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.1",
+    "boto3>=1.44.9",
     "fastapi>=0.165.0",
+    "httpx>=0.28.1",
     "psycopg[binary]>=3.3.9",
     "pydantic-settings>=2.16.3",
+    "redis>=8.1.0",
     "sqlalchemy[asyncio]>=2.1.9",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.54.0",
@@ -78,7 +81,7 @@ branch = true
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
+    "boto3-stubs[s3]>=1.44.9",
     "mypy>=2.4.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
