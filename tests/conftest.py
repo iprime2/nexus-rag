@@ -21,6 +21,8 @@ def settings() -> Settings:
 
     ``_env_file=None`` stops pydantic-settings from reading a developer's
     local ``.env``, so tests behave the same on every machine and in CI.
+    (The required database password comes from the environment: a fake one
+    for unit tests, see tests/unit/conftest.py.)
     """
     return Settings(_env_file=None, environment=Environment.TEST)
 

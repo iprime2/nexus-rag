@@ -7,7 +7,7 @@ therefore stops the process immediately with a clear error, instead of failing
 later in the middle of a request.
 
 Settings are added group by group, when the feature that needs them is built
-(database URL in step 1.5, Redis/Qdrant/S3 in 1.6, …). Secrets will use
+(Postgres in step 1.5, Redis/Qdrant/S3 in 1.6, …). Secrets use
 ``pydantic.SecretStr``, which prints as ``'**********'`` in logs, reprs and
 error messages; the real value comes only from ``.get_secret_value()``.
 """
@@ -16,8 +16,9 @@ from enum import StrEnum
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import URL
 
 
 class Environment(StrEnum):
@@ -48,6 +49,36 @@ class Settings(BaseSettings):
     # "json": one JSON object per line, for machines (Docker, CloudWatch, Loki).
     # "console": coloured, human-readable lines, for local development.
     log_format: Literal["json", "console"] = "json"
+
+    # PostgreSQL. Separate fields instead of one URL: the password can be
+    # injected on its own (e.g. from AWS Secrets Manager), and it stays a
+    # SecretStr so it never appears in logs or error messages.
+    postgres_host: str = "localhost"
+    postgres_port: int = Field(default=5432, ge=1, le=65535)
+    postgres_db: str = "nexus"
+    postgres_user: str = "nexus"
+    postgres_password: SecretStr  # required: no default, so a missing password fails at startup
+    # Connections kept open per process, plus temporary extras under load.
+    # Small on purpose: total = processes x (pool + overflow) must stay under
+    # Postgres max_connections (see docs/database-design.md §6).
+    db_pool_size: int = Field(default=5, ge=1, le=50)
+    db_max_overflow: int = Field(default=5, ge=0, le=50)
+    db_pool_timeout_seconds: float = Field(default=10.0, gt=0)
+
+    @property
+    def database_url(self) -> URL:
+        """SQLAlchemy URL for the async psycopg driver.
+
+        A ``URL`` object (not a string): its ``repr``/``str`` mask the password.
+        """
+        return URL.create(
+            drivername="postgresql+psycopg",
+            username=self.postgres_user,
+            password=self.postgres_password.get_secret_value(),
+            host=self.postgres_host,
+            port=self.postgres_port,
+            database=self.postgres_db,
+        )
 
     @model_validator(mode="after")
     def _forbid_unsafe_production_flags(self) -> Self:

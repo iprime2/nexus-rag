@@ -91,10 +91,24 @@ uv run uvicorn app.main:create_app --factory --reload
 
 Then open <http://localhost:8000/docs> (interactive API docs) or <http://localhost:8000/health/live>.
 
+### Database migrations
+
+```bash
+uv run alembic upgrade head
+```
+
+In Docker Compose, the one-off `migrate` service runs this automatically before the API starts.
+
 ### Quality checks
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
+```
+
+Integration tests need Postgres (`docker compose up -d postgres`) and are opt-in:
+
+```bash
+uv run pytest -m integration
 ```
 
 ### Full stack with Docker Compose
