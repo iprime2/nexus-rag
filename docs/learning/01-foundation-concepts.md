@@ -198,3 +198,57 @@ MinIO's community edition stopped publishing images (Oct 2025) and was archived.
 - **"How do you keep Docker images small and secure?"** Multi-stage builds, slim base, non-root user, `.dockerignore`, pinned versions, no secrets in layers, and a vulnerability scan in CI.
 - **"Why might a container ignore `docker stop` and take 10 seconds to die?"** Shell-form `CMD` makes `sh` PID 1, and it doesn't forward signals. Use exec form, or an init like `tini`.
 - **"Your dependency (MinIO) was abandoned. What do you do?"** Depend on protocols and interfaces, so you can swap the implementation; record the change in an ADR; verify the replacement with the same behavioural checks.
+
+---
+
+## Step 1.5: Database layer (SQLAlchemy 2 + psycopg 3 + Alembic)
+
+### The pieces
+| Piece | Role | TypeORM / NestJS equivalent |
+|---|---|---|
+| `create_engine()` (`app/db/session.py`) | Owns the **connection pool**; one per process | `DataSource` |
+| `AsyncSession` (`get_session` dependency) | One unit of work per request, borrowed from the pool | `EntityManager` / `QueryRunner` |
+| `Base` + models (`app/db/`) | Python classes ↔ tables; `Mapped[...]` type hints define columns | `@Entity` classes |
+| Alembic (`migrations/`) | Versioned schema changes, `upgrade` / `downgrade` | `typeorm migration:generate/run` |
+| psycopg 3 | Postgres driver with both sync and async modes | `pg` |
+
+### Key decisions
+| Decision | Why |
+|---|---|
+| Password is a separate `SecretStr` field, URL built in code | Injected alone from a secret manager; never printed (tested) |
+| `pool_pre_ping=True` | Dead connections (DB restart, failover) are replaced before use instead of failing a request |
+| Small pool (5 + 5 overflow) | processes × (pool + overflow) must stay below `max_connections` |
+| `expire_on_commit=False` | Async sessions can't lazy-load on attribute access after commit |
+| Explicit `commit()`, no auto-commit per request | Streaming endpoints mustn't hold a transaction; some operations need several transactions |
+| Constraint naming convention | Alembic can find and alter constraints by stable names |
+| `text` + `CHECK` instead of Postgres `ENUM` | Changing allowed values is an ordinary migration (D-5) |
+| UUIDv7 IDs generated in Python (`app/core/ids.py`) | Exist before INSERT; time-ordered, so B-tree inserts stay fast (D-6) |
+| DB URL never in `alembic.ini` | One source of credentials (`Settings`) |
+| Migrations as a **separate one-off job** (`migrate` service) | Several API replicas starting at once would otherwise race to migrate |
+
+### Testing strategy here
+| Kind | Example | Runs |
+|---|---|---|
+| Unit (no DB) | password never in `repr`/`str`; pool configured; UUIDv7 format and ordering | `uv run pytest` |
+| Integration (real Postgres, fresh DB per run, migrated by Alembic) | unique slug, CHECK constraints, request rollback, migrations down/up | `uv run pytest -m integration` |
+| **Schema drift** | `compare_metadata(models, migrated DB) == []` | integration |
+
+The drift test was **proven to fail** by changing `String(63)` to `String(64)` without a migration. It reported `modify_type … VARCHAR(63)`. A test you have never seen fail might not be testing anything.
+
+### What breaks if done wrong
+| Mistake | Consequence | Guard |
+|---|---|---|
+| Model changed, migration forgotten | Production schema differs from code; runtime errors | drift test |
+| Migrations run at app startup with N replicas | Concurrent DDL, lock waits, half-applied migrations | `migrate` job |
+| One shared session across requests | Data from one request leaks into or blocks another | per-request `get_session` |
+| Unique checks done in Python (`SELECT` then `INSERT`) | Race: two requests both pass the check | DB `UNIQUE` constraint (tested) |
+| Password in the URL string or `alembic.ini` | Secrets in logs, tracebacks, git | `SecretStr`, URL object, test |
+
+### Exercises
+1. Add a nullable `description` column to `Tenant`, run `uv run alembic revision --autogenerate -m "add tenant description"`, read the generated file, then `uv run alembic upgrade head` and `downgrade -1`.
+2. Skip the migration in exercise 1 and run `uv run pytest -m integration`. Which test fails, and what does its message say?
+
+### Interview questions
+- **"How do you run DB migrations safely in production?"** As a separate job before the new version takes traffic; backwards-compatible changes (expand → migrate data → contract); never at app startup with multiple replicas.
+- **"Why enforce constraints in the database if the app validates already?"** Concurrency (check-then-insert races), other writers (scripts, workers), and defense in depth. The database is the last line of defense.
+- **"What's a connection pool and how do you size it?"** Reused open connections (opening one costs a TCP + TLS + auth round trip). Size so that all processes' pools fit under `max_connections`; add PgBouncer or RDS Proxy when they don't.

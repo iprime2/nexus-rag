@@ -5,8 +5,11 @@ description = "Distributed enterprise Retrieval-Augmented Generation platform"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.1",
     "fastapi>=0.165.0",
+    "psycopg[binary]>=3.3.9",
     "pydantic-settings>=2.16.3",
+    "sqlalchemy[asyncio]>=2.1.9",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -63,7 +66,8 @@ warn_required_dynamic_aliases = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = ["--strict-markers", "--strict-config", "-ra"]
+addopts = ["--strict-markers", "--strict-config", "-ra", "-m", "not integration"]
+# Integration tests are skipped by default; run them with: uv run pytest -m integration
 markers = [
     "integration: needs real services (Postgres, Redis, Qdrant, S3)",
 ]

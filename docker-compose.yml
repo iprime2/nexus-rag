@@ -16,6 +16,24 @@
 
 name: nexus-rag
 
+# Shared settings for every container built from our image (api, migrate,
+# and later the Celery workers). `<<: *app-service` merges this block in.
+x-app-service: &app-service
+  build: .
+  image: nexus-rag:local
+  env_file:
+    - path: .env
+      required: false  # works before you've created .env
+  environment:
+    NEXUS_LOG_FORMAT: json
+    # Inside the Compose network, services reach each other by service name.
+    # These override any localhost values from .env.
+    NEXUS_POSTGRES_HOST: postgres
+    NEXUS_POSTGRES_PORT: "5432"
+    NEXUS_POSTGRES_DB: ${POSTGRES_DB:-nexus}
+    NEXUS_POSTGRES_USER: ${POSTGRES_USER:-nexus}
+    NEXUS_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexus-local-only}
+
 services:
   postgres:
     image: postgres:18.7-alpine
@@ -88,17 +106,24 @@ services:
       timeout: 3s
       retries: 20
 
+  # One-off job: apply database migrations, then exit. The API waits for it.
+  # Running migrations here (not inside the API process) means several API
+  # replicas never race to migrate the same database at startup.
+  migrate:
+    <<: *app-service
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
-    build: .
-    image: nexus-rag:local
-    env_file:
-      - path: .env
-        required: false  # works before you've created .env
-    environment:
-      NEXUS_LOG_FORMAT: json
+    <<: *app-service
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

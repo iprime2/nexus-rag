@@ -46,6 +46,10 @@ RUN groupadd --system --gid 10001 nexus \
 
 WORKDIR /app
 COPY --from=builder --chown=nexus:nexus /app/.venv /app/.venv
+# Migrations ship in the same image, so the code and its schema always match.
+# Run them as a separate one-off step (`alembic upgrade head`), not at API startup.
+COPY --chown=nexus:nexus alembic.ini ./
+COPY --chown=nexus:nexus migrations ./migrations
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
