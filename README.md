@@ -1,5 +1,7 @@
 # NexusRAG
 
+[![CI](https://github.com/iprime2/nexus-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/iprime2/nexus-rag/actions/workflows/ci.yml)
+
 **Distributed Enterprise Retrieval-Augmented Generation Platform**
 
 NexusRAG is a multi-tenant document intelligence backend. It ingests batches of 500–1,000+ documents through horizontally scalable workers, indexes them for hybrid (semantic + keyword) retrieval, and answers questions with streamed, cited responses, restricted to documents the caller is authorized to see.

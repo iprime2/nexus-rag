@@ -1,0 +1,112 @@
+# Continuous integration: runs on every pull request and on pushes to main.
+#
+#   quality      lint, format, types, unit tests, dependency vulnerability scan
+#   integration  real Postgres/Redis/Qdrant/S3 via the same docker-compose.yml
+#                developers use, integration tests, then a full-stack smoke test
+#                (build image → migrate → create bucket → API ready)
+#
+# Third-party actions are pinned to a full commit SHA (with the version in a
+# comment): a moved or compromised tag can't change what runs here.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push to the same branch cancels the older, now-irrelevant run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the workflow only needs to read the code.
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.11.32"
+  # Unit tests must never depend on a developer's machine state.
+  NEXUS_POSTGRES_PASSWORD: ci-unit-tests-do-not-connect
+
+jobs:
+  quality:
+    name: Lint, types, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d  # v10.4.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install dependencies (exactly as locked)
+        run: uv sync --locked
+
+      - name: Lint (ruff)
+        run: uv run ruff check --output-format=github .
+
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
+
+      - name: Type check (mypy, strict)
+        run: uv run mypy
+
+      - name: Unit tests
+        run: uv run pytest --cov --cov-report=term-missing
+
+      - name: Dependency vulnerability scan (pip-audit)
+        run: |
+          uv export --format requirements-txt --no-dev --no-emit-project --locked > requirements.txt
+          uvx pip-audit==2.10.1 --disable-pip --requirement requirements.txt --progress-spinner off
+
+  integration:
+    name: Integration tests + stack smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d  # v10.4.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Configure local settings
+        # The integration tests and the API read the same local-only values developers use.
+        run: cp .env.example .env
+
+      - name: Start backing services (waits for their health checks)
+        run: docker compose up -d --wait --wait-timeout 180 postgres redis qdrant object-store
+
+      - name: Integration tests
+        env:
+          NEXUS_POSTGRES_PASSWORD: nexus-local-only
+        run: uv run pytest -m integration -v
+
+      - name: Smoke test — build image, migrate, create bucket, start API
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: Smoke test — API is live and ready
+        run: |
+          curl --fail --silent --show-error http://localhost:8000/health/live
+          echo
+          curl --fail --silent --show-error http://localhost:8000/health/ready
+          echo
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color --timestamps
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
