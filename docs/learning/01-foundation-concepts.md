@@ -148,3 +148,53 @@ Redaction is a **safety net**, not permission to log secrets. Also never log doc
 ### Interview questions
 - **"How do you trace one user request across services?"** Correlation ID created at the edge, bound to context, returned to the client, and propagated in headers and task metadata. Later, OpenTelemetry trace IDs do the same across processes (Phase 6).
 - **"How do you keep secrets out of logs?"** Don't log raw objects; type secrets as `SecretStr`; a redaction processor as the last line of defense; tests that check the real output.
+
+---
+
+## Step 1.4: Docker and Docker Compose
+
+### Dockerfile: the ideas
+| Technique | What it does | Why it matters |
+|---|---|---|
+| **Multi-stage build** | `builder` has uv and installs deps; `runtime` gets only Python + the finished `.venv` | Smaller image (235 MB), no build tools for an attacker to use |
+| **Dependency layer first** | `uv sync --no-install-project` with only `uv.lock` + `pyproject.toml` mounted, then copy `app/` | Code edits don't re-download dependencies, so rebuilds take seconds. Same trick as `COPY package*.json` before `npm ci`. |
+| `--locked` | Build fails if `uv.lock` doesn't match `pyproject.toml` | The image contains exactly what was tested |
+| `--no-editable` | `app` is installed into site-packages; the source tree isn't needed at runtime | Runtime stage copies only `.venv` |
+| **Non-root user** (uid 10001) | Process runs without root | A compromised process can't own the container |
+| **Exec-form `CMD`** | Uvicorn is PID 1 and receives `SIGTERM` directly | Graceful shutdown: in-flight requests finish (measured: stop in 0.6 s) |
+| `.dockerignore` | Excludes `.env`, `.git`, `.venv`, tests, docs | **Secrets never enter an image**; smaller, faster build context |
+| Pinned image tags | `postgres:18.7-alpine`, not `postgres:latest` | Reproducible builds; upgrades are deliberate |
+
+### Compose: the ideas
+| Technique | Where | Why |
+|---|---|---|
+| Health checks + `depends_on: condition: service_healthy` | every service | The API starts only after the databases accept connections. "Container started" ≠ "service ready". |
+| Named volumes | `postgres-data`, `redis-data`, … | Data survives `down`/`up` (verified: rows and keys still there). `down -v` deletes them. |
+| Ports bound to `127.0.0.1` | every service | Databases are not exposed to your Wi-Fi network |
+| `${VAR:-default}` | credentials, ports | Local defaults that work out of the box, overridable from the shell |
+| Redis `--appendonly yes --maxmemory-policy noeviction` | `redis` | Broker safety from ADR-0002: queued tasks survive restarts and are never silently evicted |
+| Postgres 18 volume at `/var/lib/postgresql` | `postgres` | The PG 18 image changed its data path; mounting the old `/var/lib/postgresql/data` would silently lose data on recreate |
+
+### MinIO → SeaweedFS
+MinIO's community edition stopped publishing images (Oct 2025) and was archived. SeaweedFS replaces it ([ADR-0011](../adr/0011-seaweedfs-for-local-object-storage.md)). The app talks only S3, so nothing else changes. This is the benefit of depending on a **protocol**, not a product.
+
+### Why infrastructure credentials aren't in `.env`
+`Settings` rejects unknown keys in `.env` (step 1.2), so `.env` holds only `NEXUS_*` app settings. Local infrastructure credentials are throwaway defaults in `docker-compose.yml`; real environments use Secrets Manager.
+
+### What breaks if done wrong
+| Mistake | Consequence |
+|---|---|
+| `COPY . .` before installing deps | Every code change reinstalls all dependencies |
+| Shell-form `CMD uvicorn …` | `sh` is PID 1 and doesn't forward `SIGTERM`; Docker kills the app after 10 s, dropping in-flight requests |
+| No `.dockerignore` | `.env` with real keys ends up in an image pushed to a registry |
+| `depends_on` without health conditions | API starts before Postgres is ready, so startup errors and restart loops |
+| `0.0.0.0` port bindings for databases | Anyone on your network can reach Postgres with the default password |
+
+### Exercises
+1. Change one line in `app/main.py` and run `docker compose build api`. Which steps say `CACHED`? Now change `pyproject.toml` and compare.
+2. Run `docker compose stop -t 30 api` while `curl` is running in a loop. Read the shutdown logs.
+
+### Interview questions
+- **"How do you keep Docker images small and secure?"** Multi-stage builds, slim base, non-root user, `.dockerignore`, pinned versions, no secrets in layers, and a vulnerability scan in CI.
+- **"Why might a container ignore `docker stop` and take 10 seconds to die?"** Shell-form `CMD` makes `sh` PID 1, and it doesn't forward signals. Use exec form, or an init like `tini`.
+- **"Your dependency (MinIO) was abandoned. What do you do?"** Depend on protocols and interfaces, so you can swap the implementation; record the change in an ADR; verify the replacement with the same behavioural checks.

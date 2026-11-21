@@ -7,8 +7,8 @@
 | Layer | Scope | Dependencies | Runs |
 |---|---|---|---|
 | **Unit** (`tests/unit`) | Pure logic: state-transition table, chunker, cleaners, RRF, context assembly, citation parser, backoff calculation, error classification, token-bucket math | None (no network, no DB) | Every commit, < 30 s |
-| **Integration** (`tests/integration`) | Repositories against real Postgres; Qdrant adapter; S3 adapter against MinIO; Celery tasks run eagerly or with a real worker | Testcontainers or Docker Compose services | Every PR |
-| **API** (`tests/integration/api`) | FastAPI via `httpx.AsyncClient` (ASGI transport): auth, validation, error format, tenant isolation | Postgres, Redis, Qdrant, MinIO; LLM and embeddings **faked** | Every PR |
+| **Integration** (`tests/integration`) | Repositories against real Postgres; Qdrant adapter; S3 adapter against SeaweedFS; Celery tasks run eagerly or with a real worker | Testcontainers or Docker Compose services | Every PR |
+| **API** (`tests/integration/api`) | FastAPI via `httpx.AsyncClient` (ASGI transport): auth, validation, error format, tenant isolation | Postgres, Redis, Qdrant, SeaweedFS; LLM and embeddings **faked** | Every PR |
 | **End-to-end** (`tests/e2e`) | Upload → worker → query through the running Compose stack | Full stack; fake or recorded providers by default, real providers behind a flag | Nightly / on demand |
 | **Failure / chaos** (`tests/e2e/failure`) | Kill workers, restart Redis, block Qdrant, inject provider 429s and 5xx | Full stack + `docker kill`/`pause`, a fault-injecting fake provider | On demand, before milestones |
 | **Load** (`tests/load`) | Batch ingestion (500 / 1,000 documents), concurrent queries (p50/p95/p99) | Full stack; Locust or k6 | Phase 7, recorded in `docs/benchmark-results.md` |

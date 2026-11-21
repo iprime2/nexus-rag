@@ -48,7 +48,7 @@ flowchart TB
     subgraph Data["Data layer"]
         PG[("PostgreSQL<br/>source of truth<br/>metadata · jobs · chunks · FTS")]
         QD[("Qdrant<br/>vectors + filter payload")]
-        OS[("Object storage<br/>MinIO dev · S3 prod")]
+        OS[("Object storage<br/>SeaweedFS dev · S3 prod")]
         RC[("Redis<br/>rate limits · cache")]
     end
 
@@ -177,7 +177,7 @@ Full details are in [retrieval-workflow.md](retrieval-workflow.md).
 | **Redis** | Celery broker; global rate-limit token buckets; small caches | Already in the stack, fast, simple. Durability caveats are mitigated by treating PostgreSQL as the job source of truth. | RabbitMQ (better broker semantics, extra infrastructure), SQS (Phase 8). See [ADR-0002](adr/0002-celery-with-redis-broker.md). |
 | **Celery** | Distributed task execution, routing to queues, retries, time limits | Mature. Queue routing per worker role. `acks_late` and `reject_on_worker_lost` give at-least-once delivery. Large knowledge base. | Dramatiq (simpler, fewer features), arq (async-native, small), Temporal (durable workflows, heavier operationally), RQ (too minimal). See ADR-0002. |
 | **Qdrant** | Vector storage and filtered ANN search | Filters are applied *during* HNSW search (no recall collapse under tenant filters), tenant-optimized payload indexes, native sparse vectors (a future hybrid option), snapshots, replication. | pgvector (one database and transactional, but filtered search and scaling are weaker); Weaviate / Milvus (heavier). See [ADR-0003](adr/0003-qdrant-for-vectors-postgres-for-text.md). |
-| **Object storage (MinIO → S3)** | Original files, immutable once written | The S3 API is the same in development and production; only the endpoint changes. Keeps large binary data out of Postgres. | Local filesystem (a different code path, and multiple worker containers need a shared volume); LocalStack. See [ADR-0005](adr/0005-s3-compatible-object-storage.md). |
+| **Object storage (SeaweedFS → S3)** | Original files, immutable once written | The S3 API is the same in development and production; only the endpoint changes. Keeps large binary data out of Postgres. | Local filesystem (a different code path, and multiple worker containers need a shared volume); LocalStack. See [ADR-0005](adr/0005-s3-compatible-object-storage.md). |
 | **Prometheus + Grafana** | Metrics and dashboards | Already familiar to you. Pull model, PromQL for p95/p99. | CloudWatch only (weaker locally), Datadog (cost). |
 | **OpenTelemetry** | Distributed traces across API → Celery → providers | Vendor-neutral. Auto-instrumentation for FastAPI, Celery, SQLAlchemy and HTTPX. | Vendor SDKs. |
 | **Docker Compose** | Local environment | One command brings up the full stack. | Tilt / kind (Kubernetes is not justified yet). |
@@ -197,7 +197,7 @@ flowchart LR
         pg[("postgres")]
         rd[("redis")]
         qd[("qdrant")]
-        mn[("minio")]
+        mn[("seaweedfs (S3)")]
         pr["prometheus"]
         gf["grafana"]
     end

@@ -26,7 +26,7 @@ NexusRAG is a multi-tenant backend that turns large, messy document collections 
 | 2 | **Celery + Redis** broker, at-least-once delivery | Mature, routing per queue, familiar Redis. Weaknesses covered by Postgres-backed state. | [0002](adr/0002-celery-with-redis-broker.md) |
 | 3 | **Qdrant** for vectors; **chunk text only in Postgres** | Filtered ANN + tenant indexing; a single source of truth for text | [0003](adr/0003-qdrant-for-vectors-postgres-for-text.md) |
 | 4 | **Postgres is the source of truth for job state**; a sweeper reconciles the broker | No committed job lost to broker failure | [0004](adr/0004-postgres-as-job-state-source-of-truth.md) |
-| 5 | **S3 API everywhere** (MinIO locally) | One code path, dev/prod parity | [0005](adr/0005-s3-compatible-object-storage.md) |
+| 5 | **S3 API everywhere** (SeaweedFS locally, see ADR-0011) | One code path, dev/prod parity | [0005](adr/0005-s3-compatible-object-storage.md) |
 | 6 | **Hybrid retrieval** = Postgres FTS + Qdrant, fused with **RRF** | Catches exact terms embeddings miss, with no extra infrastructure | [0006](adr/0006-hybrid-retrieval-postgres-fts-rrf.md) |
 | 7 | **Native LLM provider adapters** behind a protocol; LangChain only where it saves real work | Readability, debuggability, provider-specific capabilities | [0007](adr/0007-native-llm-provider-abstraction.md) |
 | 8 | **Shared Qdrant collection with a mandatory tenant filter** + composite FKs in Postgres + hydration re-check | Isolation enforced in three independent places | [0008](adr/0008-tenant-isolation-strategy.md) |
@@ -61,8 +61,8 @@ At this project's scale (tens to hundreds of thousands of vectors) **pgvector wo
 
 The `VectorStore` protocol keeps pgvector available as an alternative implementation. A small pgvector-vs-Qdrant benchmark is a good Phase 7 extension.
 
-### MinIO vs local storage vs S3
-Local filesystem storage is a different code path from production. It also breaks as soon as workers run in separate containers (they'd need a shared volume) and skips S3 semantics (multipart, presigned URLs, eventual consistency of listings). MinIO speaks the S3 API, so development exercises the **same boto3 code** as production with only `endpoint_url` changed. Note: MinIO's community distribution and licensing changed in 2025. Phase 1 will pin a working image or switch to another S3-compatible server (e.g. SeaweedFS, LocalStack). The application depends only on the S3 API.
+### Local S3-compatible store vs local storage vs S3
+Local filesystem storage is a different code path from production. It also breaks as soon as workers run in separate containers (they'd need a shared volume) and skips S3 semantics (multipart, presigned URLs, eventual consistency of listings). A local S3-compatible server lets development exercise the **same boto3 code** as production with only `endpoint_url` changed. MinIO was the original choice, but its community edition stopped publishing images in October 2025 and is now archived. **SeaweedFS** (Apache 2.0) replaces it ([ADR-0011](adr/0011-seaweedfs-for-local-object-storage.md)). The application depends only on the S3 API.
 
 ### Worker concurrency (Python-specific)
 Coming from Node.js: Node handles concurrency with one event loop and is weak at CPU-bound work. Python has the **GIL** (Global Interpreter Lock): only one thread executes Python bytecode at a time per process. So:
