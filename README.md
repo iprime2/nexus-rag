@@ -89,7 +89,7 @@ cp .env.example .env
 uv run uvicorn app.main:create_app --factory --reload
 ```
 
-Then open <http://localhost:8000/docs> (interactive API docs) or <http://localhost:8000/health/live>.
+Then open <http://localhost:8000/docs> (interactive API docs), <http://localhost:8000/health/live> (process is up) or <http://localhost:8000/health/ready> (all dependencies reachable; needs the Compose services).
 
 ### Database migrations
 
@@ -105,7 +105,7 @@ In Docker Compose, the one-off `migrate` service runs this automatically before 
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
 ```
 
-Integration tests need Postgres (`docker compose up -d postgres`) and are opt-in:
+Integration tests need the backing services (`docker compose up -d postgres redis qdrant object-store`) and a `.env` copied from `.env.example`. They are opt-in:
 
 ```bash
 uv run pytest -m integration

@@ -16,7 +16,7 @@ from enum import StrEnum
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -39,6 +39,8 @@ class Settings(BaseSettings):
         extra="forbid",
         # Settings never change after startup.
         frozen=True,
+        # `NEXUS_REDIS_PASSWORD=` (empty) means "not set" (None), not an empty password.
+        env_ignore_empty=True,
     )
 
     environment: Environment = Environment.LOCAL
@@ -65,6 +67,27 @@ class Settings(BaseSettings):
     db_max_overflow: int = Field(default=5, ge=0, le=50)
     db_pool_timeout_seconds: float = Field(default=10.0, gt=0)
 
+    # Redis (Celery broker from Phase 2; rate limits and caches later).
+    redis_host: str = "localhost"
+    redis_port: int = Field(default=6379, ge=1, le=65535)
+    redis_db: int = Field(default=0, ge=0)
+    redis_password: SecretStr | None = None  # none locally; managed Redis uses one
+
+    # Qdrant (vector store).
+    qdrant_url: AnyHttpUrl = AnyHttpUrl("http://localhost:6333")
+    qdrant_api_key: SecretStr | None = None
+
+    # S3-compatible object storage. Leave the endpoint and keys unset on AWS:
+    # boto3 then talks to real S3 and takes credentials from the IAM role.
+    s3_endpoint_url: AnyHttpUrl | None = None
+    s3_region: str = "us-east-1"
+    s3_bucket: str = "nexus-documents"
+    s3_access_key_id: SecretStr | None = None
+    s3_secret_access_key: SecretStr | None = None
+
+    # Each dependency check in /health/ready must answer within this time.
+    readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+
     @property
     def database_url(self) -> URL:
         """SQLAlchemy URL for the async psycopg driver.
@@ -85,6 +108,15 @@ class Settings(BaseSettings):
         # A cross-field rule: each field is valid on its own, but this combination isn't.
         if self.environment is Environment.PRODUCTION and self.debug:
             raise ValueError("NEXUS_DEBUG must be false when NEXUS_ENVIRONMENT=production")
+        return self
+
+    @model_validator(mode="after")
+    def _s3_keys_come_in_pairs(self) -> Self:
+        # Half a key pair would silently fall back to other credentials. Reject it instead.
+        if (self.s3_access_key_id is None) != (self.s3_secret_access_key is None):
+            raise ValueError(
+                "Set both NEXUS_S3_ACCESS_KEY_ID and NEXUS_S3_SECRET_ACCESS_KEY, or neither"
+            )
         return self
 
 

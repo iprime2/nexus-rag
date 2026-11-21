@@ -14,3 +14,18 @@ class LivenessResponse(BaseModel):
 
     status: Literal["ok"] = "ok"
     version: str
+
+
+class CheckStatus(BaseModel):
+    status: Literal["ok", "error"]
+    latency_ms: float
+    # Only the error *type* (e.g. "Timeout", "ConnectionRefusedError"), never
+    # the message: this endpoint is public, and messages can contain hostnames.
+    error: str | None = None
+
+
+class ReadinessResponse(BaseModel):
+    """Body of ``GET /health/ready`` (HTTP 200 when ready, 503 when not)."""
+
+    status: Literal["ready", "not_ready"]
+    checks: dict[str, CheckStatus]
