@@ -310,3 +310,57 @@ No. Postgres runs transactions in parallel and only makes them wait when they to
 - **"Design health checks for a service with four dependencies."** Liveness has no dependencies; readiness runs concurrent checks with timeouts, exposes minimal information, and logs details. Readiness gates traffic and never triggers restarts.
 - **"How do you call blocking libraries from async Python?"** `asyncio.to_thread` / a thread pool, plus the library's own timeouts, because a thread can't be cancelled from outside.
 - **"What does the load balancer do when all instances report not ready?"** It depends on the LB. Many fail *open* (keep routing), so readiness should reflect *this instance's* ability to serve, and alerts must fire separately.
+
+---
+
+## Step 1.7: Continuous integration (GitHub Actions)
+
+### What runs on every PR (`.github/workflows/ci.yml`)
+| Job | Steps | Catches |
+|---|---|---|
+| `quality` | `uv sync --locked` → ruff lint + format → mypy strict → unit tests + coverage → `pip-audit` | Style drift, type errors, logic bugs, known-vulnerable dependencies, lockfile out of sync |
+| `integration` | `docker compose up --wait` (real services) → integration tests → **build image + full stack** → `curl /health/live` and `/health/ready` | DB constraints, migrations, drift, outages; broken Dockerfile or Compose file; the app not booting |
+
+### Design choices
+| Choice | Why | Alternative |
+|---|---|---|
+| Reuse `docker-compose.yml` in CI instead of Actions `services:` | One definition of the stack; CI also tests the Compose file. Actions service containers can't override the container command (SeaweedFS needs one). | `services:` blocks (duplicated config) |
+| Actions pinned to **commit SHAs** | A tag can be moved or hijacked; a SHA can't (real supply-chain attacks have used moved tags) | `@v7` tags (convenient, mutable) |
+| `permissions: contents: read`, `persist-credentials: false` | Least privilege: a compromised step can't push code with the job's token | Default token permissions |
+| `concurrency` with `cancel-in-progress` | A new push cancels the obsolete run, saving runner minutes | Every run completes |
+| `uv sync --locked` | CI fails if `uv.lock` is out of date with `pyproject.toml` | Silent re-resolution |
+| Logs dumped only `if: failure()`; `down -v` with `if: always()` | Debuggable failures, clean runners | — |
+| Dependabot (uv, actions, docker) | Updates arrive as PRs that CI tests before merge | Manual upgrades |
+
+### What breaks without CI
+| Without | Consequence |
+|---|---|
+| Automated checks on PRs | "Works on my machine" merges; regressions discovered by users |
+| Integration tests in CI | Unit tests pass with mocks while the real database rejects the query |
+| A stack smoke test | A Dockerfile typo is found at deploy time, not review time |
+| Dependency scanning | Known CVEs ship silently |
+
+### Recommended next (GitHub settings, done by the owner)
+Protect `main`: require the `Lint, types, unit tests` and `Integration tests + stack smoke test` checks to pass before merging, and disallow direct pushes.
+
+### Exercises
+1. Push a branch with a deliberate type error (e.g. `return 1` from `live()`). Which job fails, on which step?
+2. Bump a dependency in `pyproject.toml` without running `uv lock` and push. What does `uv sync --locked` say?
+
+### Interview questions
+- **"What belongs in CI for a service like this?"** Fast static checks first, unit tests, then integration tests against real dependencies, an image build, a boot/readiness smoke test, and dependency scanning. Fail fast and keep it under ~10 minutes.
+- **"How do you secure a CI pipeline?"** Least-privilege tokens, SHA-pinned actions, no secrets for PRs from forks, secrets scoped to environments, dependency and image scanning.
+
+---
+
+## Phase 1 recap
+
+| Step | You can now explain |
+|---|---|
+| 1.1 | Python project layout, uv + lockfile, app factory, liveness |
+| 1.2 | Typed fail-fast config, `SecretStr`, test isolation from `.env` |
+| 1.3 | Structured logs, correlation IDs via contextvars, redaction, log injection |
+| 1.4 | Multi-stage non-root images, graceful shutdown, health-gated Compose, ADR for MinIO → SeaweedFS |
+| 1.5 | Pools, sessions, migrations as a separate job, DB constraints vs races, schema-drift tests |
+| 1.6 | Readiness vs liveness, concurrent checks with timeouts, blocking calls in async code |
+| 1.7 | CI pipeline design and supply-chain hygiene |

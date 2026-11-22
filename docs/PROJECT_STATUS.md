@@ -3,13 +3,13 @@
 _Last updated: 2026-11-20_
 
 ## Current phase
-**Phase 1: Project Foundation**. Plan approved 2026-11-20. Steps 1.1–1.6 done; step 1.7 (CI) next.
+**Phase 1: Project Foundation**. Plan approved 2026-11-20. All steps (1.1–1.7) implemented; Phase 1 completes when the CI PR is green and merged.
 
 ## Phase overview
 | Phase | Name | Status |
 |---|---|---|
 | 0 | System design & architecture | ✅ Complete (approved 2026-11-20, PRs #1, #2) |
-| 1 | Project foundation | 🟡 In progress (6/7 steps) |
+| 1 | Project foundation | 🟡 7/7 steps implemented, CI PR in review |
 | 2 | Document ingestion | ⚪ |
 | 3 | Embeddings & vector storage | ⚪ |
 | 4 | Retrieval & generation | ⚪ |
@@ -33,13 +33,14 @@ Decisions: Python 3.13 runtime with `requires-python >= 3.12`; S3-compatible sto
 - [x] 1.4 Docker: Dockerfile (multi-stage, non-root) + Compose (Postgres, Redis, Qdrant, S3-compatible store, API)
 - [x] 1.5 Database: SQLAlchemy 2 async engine (psycopg 3), session dependency, Alembic with a first `tenants` migration
 - [x] 1.6 Readiness: `/health/ready` checking Postgres, Redis, Qdrant and object storage with timeouts
-- [ ] 1.7 CI: GitHub Actions running lint, type checks, unit tests and integration tests (service containers)
-- [ ] Learning notes: `docs/learning/01-foundation-concepts.md` (steps 1.1–1.6 written)
+- [x] 1.7 CI: GitHub Actions running lint, type checks, unit tests and integration tests (service containers)
+- [x] Learning notes: `docs/learning/01-foundation-concepts.md` (all steps + recap)
 
 ## Known issues
 - The cloud development container can run Docker (started manually), but image builds there need the sandbox proxy's CA mounted as a build secret. This is a sandbox-only workaround, not part of the committed Dockerfile.
 - The GitHub default branch may still point at the first pushed branch. Set it to `main` in repository settings.
 
 ## Next recommended steps
-1. Owner reviews and merges the step 1.6 PR.
-2. Step 1.7: GitHub Actions CI (lint, types, unit tests, integration tests with service containers).
+1. Owner merges the step 1.7 PR once CI is green.
+2. Owner protects `main` (require both CI checks; no direct pushes) in GitHub settings.
+3. Plan Phase 2 (document ingestion): upload, validation, checksums, registration, Celery workers, extraction, chunking. The plan is presented for approval before any code.
