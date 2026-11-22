@@ -20,7 +20,9 @@ from sqlalchemy import create_engine as create_sync_engine
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+import app.db.models  # noqa: F401  (registers every table on Base.metadata)
 from app.core.config import Environment, Settings
+from app.db.base import Base
 from app.db.session import create_engine, create_sessionmaker
 
 PROJECT_ROOT = Path(__file__).parents[2]
@@ -77,6 +79,8 @@ async def engine(db_settings: Settings) -> AsyncIterator[AsyncEngine]:
 @pytest.fixture
 async def session_factory(engine: AsyncEngine) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     yield create_sessionmaker(engine)
-    # Each test starts from empty tables (cheap at this size; revisit when tables grow).
+    # Each test leaves empty tables behind. One TRUNCATE over every model table
+    # handles foreign keys between them (cheap at this size; revisit when tables grow).
+    tables = ", ".join(f'"{name}"' for name in Base.metadata.tables)
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE tenants"))
+        await conn.execute(text(f"TRUNCATE {tables}"))
