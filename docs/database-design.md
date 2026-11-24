@@ -291,6 +291,12 @@ Tables added beyond the suggested list: `api_keys`, `ingestion_batches`, `ingest
 - `config` stores the full retrieval and generation configuration (k values, fusion weights, reranker, model, prompt version) and `git_sha`, so **every metric is reproducible and attributable to a configuration**.
 - Per-question results enable regression diffing between runs.
 
+### Implementation notes (Phase 2.2)
+- Statuses for documents, versions and jobs are uppercase (`ACTIVE`, `QUEUED`, …), matching the state-machine docs; tenant status stays lowercase.
+- `ingestion_jobs → ingestion_batches` has no `ON DELETE` action: `SET NULL` on a composite key would also null `tenant_id`.
+- `documents.current_version_id` FK is added after both tables exist (circular reference); see the migration.
+- `document_chunks` arrives in step 2.7 with chunking.
+
 ## 5. Transaction boundaries
 
 | Operation | Transaction scope | Notes |

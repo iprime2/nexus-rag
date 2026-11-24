@@ -15,7 +15,14 @@ Whenever you design, write or change code:
 6. **Interview angle:** 1–3 questions an interviewer could ask about this piece, with short answer sketches.
 7. Record durable notes in `docs/learning/` (one file per phase) so the learning outlives the chat.
 
-**Communication style (owner preference):** keep answers brief. Prefer tables and short bullets over long prose. Put the depth in `docs/learning/`, not in chat.
+**Teaching happens in the conversation, not only in docs (owner feedback, 2026-11-24).** A summary of finished work is not teaching. For every step:
+1. **Lesson first, in chat:** one concept at a time, with a concrete scenario (timeline or failure story), the naive approach, why it breaks, and the fix. Before any code is written.
+2. **Check understanding:** end each lesson with 1–2 questions. Wait for the owner's answers, give honest feedback (what was right, what to correct), then continue.
+3. **The owner writes a key piece:** each step includes a small hands-on task (a function, a test, a design decision) that the owner writes. Review it like a senior engineer, then commit it, credited.
+4. **Connect to the big picture:** say where the step sits in the RAG pipeline and why it matters for AI quality or for interviews.
+5. Then build the rest, run tests, and summarize briefly. `docs/learning/` is for revision, not a replacement for the lesson.
+
+**Communication style (owner preference):** each message focused and easy to scan (tables, short bullets). Brief per message, but never shallow: cover the concept properly across a few exchanges rather than skipping it.
 
 When the owner asks a question, teach the underlying engineering concept, don't just hand over code. If the owner proposes a flawed design, challenge it and explain the consequences.
 
