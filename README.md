@@ -93,6 +93,18 @@ uv run uvicorn app.main:create_app --factory --reload
 
 Then open <http://localhost:8000/docs> (interactive API docs), <http://localhost:8000/health/live> (process is up) or <http://localhost:8000/health/ready> (all dependencies reachable; needs the Compose services).
 
+### Tenants and API keys
+
+```bash
+uv run python -m app.cli create-tenant --slug acme --name "Acme Corp"
+```
+
+```bash
+uv run python -m app.cli create-api-key --tenant acme --name local-dev
+```
+
+Call the API with `Authorization: ApiKey <key>`, e.g. `GET /v1/me`. In Compose, prefix the commands with `docker compose exec api` instead of `uv run`.
+
 ### Database migrations
 
 ```bash

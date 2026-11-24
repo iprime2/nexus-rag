@@ -236,7 +236,7 @@ Tables added beyond the suggested list: `api_keys`, `ingestion_batches`, `ingest
 
 ### tenants / users / tenant_memberships / api_keys
 - `users` is global (one person can belong to several tenants). Membership carries the role. `CHECK (role IN ('owner','admin','member','viewer'))`.
-- `api_keys.key_hash` = SHA-256 of the secret (high-entropy random keys don't need a slow hash like argon2). Only `key_prefix` is shown in the UI. The plaintext is shown once at creation.
+- `api_keys.key_hash` = SHA-256 of the secret (high-entropy random keys don't need a slow hash like argon2). Only `key_prefix` is shown in the UI. The plaintext is shown once at creation. *Implemented in Phase 2.1 without `scopes` (added with roles in Phase 5); revocation via `revoked_at`.*
 - `tenants.fts_config` (default `'english'`) is used to build `search_vector`, supporting assumption A-4.
 
 ### ingestion_batches

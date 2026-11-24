@@ -19,7 +19,7 @@ from fastapi import FastAPI
 
 from app import __version__
 from app.api.middleware.request_context import RequestContextMiddleware
-from app.api.routes import health
+from app.api.routes import health, me
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.core.readiness import (
@@ -95,4 +95,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.add_middleware(RequestContextMiddleware)
     app.include_router(health.router)
+    app.include_router(me.router)
     return app
