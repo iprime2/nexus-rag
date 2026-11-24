@@ -9,7 +9,13 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models import IngestionJob, IngestionJobEvent
-from app.ingestion.jobs import JobError, claim_job, renew_lease, transition_job
+from app.ingestion.jobs import (
+    JobError,
+    claim_job,
+    renew_lease,
+    retry_dead_letter,
+    transition_job,
+)
 from app.ingestion.state import Checkpoint, InvalidTransitionError, JobStatus
 from tests.integration.factories import make_job_chain
 
@@ -243,3 +249,36 @@ async def test_sweeper_style_multi_state_transition(session_factory: Factory) ->
     assert result is not None and result.from_status is S.CHUNKING
     job = await load(session_factory, job_id)
     assert (job.status, job.checkpoint) == ("RETRY_PENDING", "extract")
+
+
+async def test_retry_dead_letter_requeues_without_resetting_the_token(
+    session_factory: Factory,
+) -> None:
+    job_id = await new_job(session_factory, status="DEAD_LETTER")
+    async with session_factory() as s:
+        await s.execute(
+            update(IngestionJob).where(IngestionJob.id == job_id).values(attempt=3, max_attempts=3)
+        )
+        await s.commit()
+
+    async with session_factory() as s:
+        result = await retry_dead_letter(s, job_id)
+        await s.commit()
+
+    assert result is not None and result.from_status is S.DEAD_LETTER
+    job = await load(session_factory, job_id)
+    assert job.status == "QUEUED"
+    assert job.attempt == 3  # the fencing token never goes down
+    assert job.max_attempts == 6  # three more tries instead
+    assert job.queued_at is not None
+
+
+async def test_retry_dead_letter_ignores_jobs_in_other_states(session_factory: Factory) -> None:
+    job_id = await new_job(session_factory, status="QUEUED")
+    async with session_factory() as s:
+        result = await retry_dead_letter(s, job_id)
+        await s.commit()
+
+    assert result is None
+    job = await load(session_factory, job_id)
+    assert (job.status, job.max_attempts) == ("QUEUED", 3)  # nothing changed

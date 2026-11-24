@@ -3,7 +3,7 @@
 _Last updated: 2026-11-24_
 
 ## Current phase
-**Phase 2: Document Ingestion**. Plan approved 2026-11-22. Steps 2.1–2.2 done; step 2.3 next.
+**Walking skeleton (Phases 2–4 reordered, 2026-11-24)**. Steps 2.1–2.2 done; next: W1 text extraction. Goal: ask questions about your own documents end to end, *then* harden ingestion.
 
 ## Phase overview
 | Phase | Name | Status |
@@ -40,13 +40,24 @@ Decisions: Python 3.13 runtime with `requires-python >= 3.12`; S3-compatible sto
 Decisions (2026-11-22): minimal API-key auth now (users/JWT in Phase 5); `pypdf` for PDFs (license; benchmark in Phase 7); own magic-byte detection and own chunk splitter.
 
 - [x] 2.1 Tenant authentication with API keys (`api_keys`, CLI, `CurrentTenant` dependency, `GET /v1/me`)
-- [x] 2.2 Ingestion schema + job state machine (documents, versions, batches, jobs, job events; CAS transitions)
-- [ ] 2.3 Object storage: `ObjectStore` protocol, streaming upload with SHA-256
-- [ ] 2.4 Upload API: batches, documents, cheap validation, registration, dedupe, 202
-- [ ] 2.5 Celery workers: claim/lease/heartbeat, enqueue after commit, sweeper
-- [ ] 2.6 Extractors (PDF, DOCX, TXT, HTML), deep validation, cleaning
-- [ ] 2.7 Chunking → `document_chunks` → `CHUNKED`; job and batch status endpoints
-- [ ] 2.8 Failure drills (F1–F3, F5, F9, F12)
+- [x] 2.2 Ingestion schema + job state machine (documents, versions, batches, jobs, job events; CAS transitions) + owner exercise: `retry_dead_letter`
+
+### Roadmap change (owner decision, 2026-11-24): walking skeleton first
+Build a thin end-to-end RAG path early (synchronous, driven from the CLI), so the AI parts are visible and testable sooner, then harden it with the upload API, Celery and failure drills. Interfaces from the design are kept, so little is rewritten. OpenAI is the first provider for embeddings and answers (owner has a key); the provider abstraction stays.
+
+| Step | What | AI / architecture lesson |
+|---|---|---|
+| W1 | Text extraction + cleaning (PDF, TXT) as pure pipeline stages | Why extraction quality bounds answer quality |
+| W2 | Token-aware chunking → `document_chunks` (CLI `ingest`) | Chunk size trade-offs, tokens, overlap |
+| W3 | Embeddings: `EmbeddingProvider` + OpenAI, batching | What embeddings are; cosine similarity |
+| W4 | Qdrant indexing + semantic search (CLI `search`) | Vector databases, HNSW, tenant filters |
+| W5 | Grounded answers with citations (CLI `ask`) | Prompting, grounding, hallucination control |
+| H1 | Object storage + upload API (202, dedupe) | Streaming uploads, idempotent registration |
+| H2 | Celery workers, leases, sweeper | At-least-once delivery in practice |
+| H3 | DOCX/HTML extractors, deep validation | Untrusted input handling |
+| H4 | Keyword search + RRF hybrid, reranking | Hybrid retrieval |
+| H5 | Failure drills (F1–F3, F5, F9, F12) | Proving reliability |
+
 - [ ] Learning notes: `docs/learning/02-ingestion-concepts.md` (steps 2.1–2.2 written)
 
 ## Known issues
@@ -54,6 +65,6 @@ Decisions (2026-11-22): minimal API-key auth now (users/JWT in Phase 5); `pypdf`
 - The GitHub default branch may still point at the first pushed branch. Set it to `main` in repository settings.
 
 ## Next recommended steps
-1. Owner reviews and merges the step 2.2 PR.
+1. Owner merges the step 2.2 PR (#11).
 2. Owner: set the default branch to `main` and protect it (require both CI checks).
-3. Step 2.3: `ObjectStore` protocol and streaming upload with SHA-256.
+3. W1: lesson on text extraction, then the owner's hands-on task, then the implementation.

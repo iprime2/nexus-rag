@@ -239,3 +239,35 @@ async def renew_lease(
         },
     )
     return bool(result.rowcount)  # type: ignore[attr-defined]
+
+
+async def retry_dead_letter(
+    session: AsyncSession, job_id: uuid.UUID, *, extra_attempts: int = 3
+) -> TransitionResult | None:
+    """Operator action: send a DEAD_LETTER job back to QUEUED after fixing the cause.
+
+    No ``attempt`` fence: an operator isn't a worker, holds no lease and has no
+    token. ``attempt`` itself is never reset (it is the fencing token and must
+    only go up); instead the budget is raised so the job gets ``extra_attempts``
+    more tries. Returns None if the job isn't in DEAD_LETTER.
+
+    Designed by the project owner in the Phase 2.2 lesson.
+    """
+    if extra_attempts < 1:
+        raise ValueError("extra_attempts must be at least 1")
+    # Same transaction as the transition below: if the job isn't dead-lettered,
+    # this updates nothing and the transition returns None.
+    await session.execute(
+        text("""
+            UPDATE ingestion_jobs SET max_attempts = attempt + :extra
+            WHERE id = :job_id AND status = :dead_letter
+        """),
+        {"job_id": job_id, "extra": extra_attempts, "dead_letter": JobStatus.DEAD_LETTER.value},
+    )
+    return await transition_job(
+        session,
+        job_id,
+        expected=JobStatus.DEAD_LETTER,
+        target=JobStatus.QUEUED,
+        details={"reason": "manual_retry", "extra_attempts": extra_attempts},
+    )
