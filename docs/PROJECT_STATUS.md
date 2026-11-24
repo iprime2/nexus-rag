@@ -3,7 +3,7 @@
 _Last updated: 2026-11-24_
 
 ## Current phase
-**Walking skeleton (Phases 2–4 reordered, 2026-11-24)**. Steps 2.1–2.2 done; next: W1 text extraction. Goal: ask questions about your own documents end to end, *then* harden ingestion.
+**Walking skeleton (Phases 2–4 reordered, 2026-11-24)**. Steps 2.1–2.2 and W1 done; next: W2 chunking. Goal: ask questions about your own documents end to end, *then* harden ingestion.
 
 ## Phase overview
 | Phase | Name | Status |
@@ -47,7 +47,7 @@ Build a thin end-to-end RAG path early (synchronous, driven from the CLI), so th
 
 | Step | What | AI / architecture lesson |
 |---|---|---|
-| W1 | Text extraction + cleaning (PDF, TXT) as pure pipeline stages | Why extraction quality bounds answer quality |
+| W1 ✅ | Text extraction + cleaning (PDF, TXT) as pure pipeline stages; ADR-0012 | Why extraction quality bounds answer quality |
 | W2 | Token-aware chunking → `document_chunks` (CLI `ingest`) | Chunk size trade-offs, tokens, overlap |
 | W3 | Embeddings: `EmbeddingProvider` + OpenAI, batching | What embeddings are; cosine similarity |
 | W4 | Qdrant indexing + semantic search (CLI `search`) | Vector databases, HNSW, tenant filters |
@@ -58,13 +58,13 @@ Build a thin end-to-end RAG path early (synchronous, driven from the CLI), so th
 | H4 | Keyword search + RRF hybrid, reranking | Hybrid retrieval |
 | H5 | Failure drills (F1–F3, F5, F9, F12) | Proving reliability |
 
-- [ ] Learning notes: `docs/learning/02-ingestion-concepts.md` (steps 2.1–2.2 written)
+- [ ] Learning notes: `docs/learning/02-ingestion-concepts.md` (steps 2.1–2.2, W1 written)
 
 ## Known issues
 - The cloud development container can run Docker (started manually), but image builds there need the sandbox proxy's CA mounted as a build secret. This is a sandbox-only workaround, not part of the committed Dockerfile.
 - The GitHub default branch may still point at the first pushed branch. Set it to `main` in repository settings.
 
 ## Next recommended steps
-1. Owner merges the step 2.2 PR (#11).
+1. Owner reviews the W1 PR (review questions in chat) and merges it.
 2. Owner: set the default branch to `main` and protect it (require both CI checks).
-3. W1: lesson on text extraction, then the owner's hands-on task, then the implementation.
+3. W2: lesson on chunking, then the owner's spec, then implementation (CLI `ingest`).

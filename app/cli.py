@@ -3,6 +3,7 @@
     uv run python -m app.cli create-tenant --slug acme --name "Acme Corp"
     uv run python -m app.cli create-api-key --tenant acme --name ci-uploader
     uv run python -m app.cli revoke-api-key <key-id>
+    uv run python -m app.cli extract path/to/file.pdf
 
 In Docker Compose: ``docker compose exec api python -m app.cli …``.
 
@@ -15,12 +16,14 @@ import asyncio
 import sys
 import uuid
 from collections.abc import Sequence
+from pathlib import Path
 
 from sqlalchemy.exc import IntegrityError
 
 from app.auth.service import create_tenant, get_tenant_by_slug, issue_api_key, revoke_api_key
 from app.core.config import Settings, get_settings
 from app.db.session import create_engine, create_sessionmaker
+from app.ingestion.extraction import ExtractionError, extract_document
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,7 +40,31 @@ def build_parser() -> argparse.ArgumentParser:
 
     revoke = commands.add_parser("revoke-api-key", help="revoke an API key")
     revoke.add_argument("key_id", type=uuid.UUID)
+
+    extract = commands.add_parser(
+        "extract", help="show the cleaned text extracted from a local PDF or TXT file"
+    )
+    extract.add_argument("path", type=Path)
     return parser
+
+
+def run_extract(path: Path) -> int:
+    """Extract → clean → guard on a local file and print the result (no database)."""
+    mime = {".pdf": "application/pdf", ".txt": "text/plain"}.get(path.suffix.lower())
+    if mime is None:
+        print(f"error: unsupported file type {path.suffix!r} (use .pdf or .txt)", file=sys.stderr)
+        return 1
+    try:
+        document = extract_document(path, mime)
+    except ExtractionError as error:
+        print(f"error: {error.code}: {error.message}", file=sys.stderr)
+        return 1
+    print(f"pages: {document.page_count}")
+    print(f"removed headers/footers: {sorted(document.removed_boilerplate) or 'none'}")
+    print(f"pages without text: {document.pages_without_text or 'none'}")
+    for page in document.pages:
+        print(f"\n----- page {page.page_number} -----\n{page.text}")
+    return 0
 
 
 async def run(args: argparse.Namespace, settings: Settings) -> int:
@@ -81,6 +108,8 @@ async def run(args: argparse.Namespace, settings: Settings) -> int:
 
 def main(argv: Sequence[str] | None = None, settings: Settings | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "extract":  # local-only: needs no settings or database
+        return run_extract(args.path)
     return asyncio.run(run(args, settings or get_settings()))
 
 

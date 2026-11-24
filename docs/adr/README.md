@@ -17,5 +17,6 @@ Status values: `Proposed` → `Accepted` | `Rejected`; later `Superseded by ADR-
 | [0009](0009-scope-relative-to-reference-diagram.md) | Scope relative to the reference diagram | Accepted |
 | [0010](0010-two-stage-worker-pipeline.md) | Two-stage worker pipeline | Accepted |
 | [0011](0011-seaweedfs-for-local-object-storage.md) | SeaweedFS as the local S3-compatible store (refines 0005) | Accepted |
+| [0012](0012-document-extraction-and-ocr.md) | Document text extraction, cleaning and OCR | Accepted |
 
 Template: [template.md](template.md).

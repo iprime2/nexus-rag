@@ -115,3 +115,36 @@ ruff's bandit rule S608 flags SQL built with f-strings. Here only fixed fragment
 - **"Two workers receive the same message. How do you make sure only one processes it?"** An atomic compare-and-set on the job's state in the database. The broker isn't trusted for exactly-once.
 - **"What's a fencing token?"** A monotonically increasing number handed out with a lease. Every write must present it, so a worker whose lease expired (GC pause, network partition) can't clobber the new owner's work.
 - **"Why enforce invariants with partial unique indexes instead of application checks?"** Under concurrency, check-then-insert races. The index makes the rule atomic and also protects against other writers (scripts, workers).
+
+---
+
+## Walking skeleton W1: text extraction and cleaning
+
+### Why it matters
+Every later stage (chunks, embeddings, retrieval, the LLM's answer) sees only this text. **Garbage in, garbage out.** A PDF stores *positioned glyphs*, not paragraphs, so extraction has to rebuild text and gets predictable things wrong.
+
+| Raw artifact | Damage to RAG | Our fix |
+|---|---|---|
+| Repeated header/footer | Every chunk looks alike → retrieval can't discriminate | Owner's detector: normalized lines at page edges on ≥ 60% of pages |
+| `informa-` ⏎ `tion` | Keyword search misses "information" | Re-join when the next line starts lowercase |
+| `ﬁ` ligature, non-breaking spaces | Text doesn't match queries | Unicode NFKC normalization |
+| Scanned page (no text) | Silent empty answers | Guard: `NO_TEXT_LAYER` (permanent error; OCR in H3) |
+| One page in a PDF fails to parse | Losing the whole document | Log it and continue; the guard decides |
+
+### Pure stages
+`extract_pdf` / `extract_txt` → `clean_pages` → `guard_has_text`, composed in `extract_document`. File in, text out, no DB or network: 25 unit tests run in 0.2 s. Try it: `uv run python -m app.cli extract your.pdf`.
+
+### Bugs the tests caught (the review lesson)
+| Bug | Root cause | Lesson |
+|---|---|---|
+| Password-protected PDF reported as "corrupt" | Assumed `decrypt()` *raises* on a wrong password. It *returns* `NOT_DECRYPTED`. | Read the library's contract; don't assume |
+| Real content deleted as boilerplate on short pages | "First 3 + last 3 lines" covered the whole page | Cap edges at half the page; ignore long lines |
+| Tests failing on correct code | Test data varied only by numbers, which *is* a footer after normalization | Test data must look like real documents |
+
+### Exercises
+1. Run `extract` on a real PDF of yours. Which headers were removed? Anything wrongly removed?
+2. Find a word that the hyphenation rule joins incorrectly. *(Hint: compound words.)*
+
+### Interview questions
+- **"How do you handle PDFs in a RAG pipeline?"** Per-page extraction (for citations), cleaning (boilerplate, hyphenation, Unicode), guards for scanned documents, OCR as a separate slow path, and evaluation-driven choice of extractor.
+- **"Build or buy document parsing?"** Start simple and permissive-licensed behind an interface; evaluate heavier tools (Docling, Textract) against your own eval set; watch AGPL/GPL licenses for hosted services.
