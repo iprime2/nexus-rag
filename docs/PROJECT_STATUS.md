@@ -8,13 +8,13 @@ _Last updated: 2026-11-25_
 ## Mentor review (2026-11-25) and follow-up plan
 A senior-FDE mentor reviewed the foundation. Strengths: typed config, structured logging, async DB + Alembic, API-key tenant auth, CAS state machine with fencing, CI, ADRs, docs. Problems, in priority order: (1) ownership gap: all code is AI-written; (2) no AI functionality yet; (3) no evaluation set; (4) no believable customer scenario or real dataset; (5) scope risk against the 15 Feb 2027 portfolio milestone (two more projects follow).
 
-**Owner decisions (2026-11-25):** ~10 hours/week on NexusRAG. Working model: **specify → Claude implements → owner reviews and defends** (the owner doesn't hand-write code); see `CLAUDE.md` → Ownership rules. Hint ladder accepted. The owner reviews in a local editor.
+**Owner decisions (2026-11-25):** ~10 hours/week on NexusRAG. Working model: **specify → Claude implements → owner reviews and defends** (the owner doesn't hand-write code); see `CLAUDE.md` → Ownership rules. Hint ladder accepted. The owner reviews in a local editor. Demo dataset: **FAA Advisory Circulars** (US federal works), chosen over the CMS and EU options.
 
 | PR | Scope | Status |
 |---|---|---|
 | A | Ownership rules in `CLAUDE.md`; `docs/learning/ownership.md` baseline | ✅ #13 |
-| B | `docs/learning/defense-questions.md`: 57 questions for PRs #3–#12 + design (ADR) questions | 🟡 In review |
-| C | Customer scenario + real, licence-safe dataset (owner picks from 3 options) | ⚪ |
+| B | `docs/learning/defense-questions.md`: 57 questions for PRs #3–#12 + design (ADR) questions | ✅ #14 |
+| C | Customer scenario (SkyBridge Regional, fictional) + FAA Advisory Circular dataset: `docs/customer-scenario.md`, `datasets/faa/manifest.csv`, `scripts/fetch_faa_dataset.py` | 🟡 In review |
 | D | Portfolio v1 cut line (ADR) + target dates (W2–W5 by 2026-12-06) | ⚪ |
 | E | `docs/evaluation-plan.md` + `eval/` golden-set schema (no new dependencies yet) | ⚪ |
 | F | Housekeeping: complete W1 learning notes; default-branch reminder | ⚪ |
@@ -79,7 +79,7 @@ Build a thin end-to-end RAG path early (synchronous, driven from the CLI), so th
 - The GitHub default branch may still point at the first pushed branch. Set it to `main` in repository settings.
 
 ## Next recommended steps
-1. Owner reviews and merges PR B; starts answering the ⭐ defense questions (2–3 per session).
+1. Owner reviews PR C and runs `uv run python -m scripts.fetch_faa_dataset --pin` locally (faa.gov is blocked in the dev sandbox, so no real download has been verified yet); verify the AC statuses. Keep answering ⭐ defense questions (2–3 per session).
 2. PRs C–F in order, each proposed in chat and approved before implementation.
 3. Owner: set the GitHub default branch to `main` and protect it (require both CI checks).
 4. Then W2 under the new rules: lesson → owner's chunker spec → implementation → review gate → defend.
