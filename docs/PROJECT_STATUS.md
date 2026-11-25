@@ -12,8 +12,8 @@ A senior-FDE mentor reviewed the foundation. Strengths: typed config, structured
 
 | PR | Scope | Status |
 |---|---|---|
-| A | Ownership rules in `CLAUDE.md`; `docs/learning/ownership.md` baseline | 🟡 In review |
-| B | `docs/learning/defense-questions.md`: questions for PRs #3–#12 + design (ADR) questions | ⚪ |
+| A | Ownership rules in `CLAUDE.md`; `docs/learning/ownership.md` baseline | ✅ #13 |
+| B | `docs/learning/defense-questions.md`: 57 questions for PRs #3–#12 + design (ADR) questions | 🟡 In review |
 | C | Customer scenario + real, licence-safe dataset (owner picks from 3 options) | ⚪ |
 | D | Portfolio v1 cut line (ADR) + target dates (W2–W5 by 2026-12-06) | ⚪ |
 | E | `docs/evaluation-plan.md` + `eval/` golden-set schema (no new dependencies yet) | ⚪ |
@@ -79,7 +79,7 @@ Build a thin end-to-end RAG path early (synchronous, driven from the CLI), so th
 - The GitHub default branch may still point at the first pushed branch. Set it to `main` in repository settings.
 
 ## Next recommended steps
-1. Owner reviews and merges PR A (ownership rules).
-2. PRs B–F in order, each proposed in chat and approved before implementation.
+1. Owner reviews and merges PR B; starts answering the ⭐ defense questions (2–3 per session).
+2. PRs C–F in order, each proposed in chat and approved before implementation.
 3. Owner: set the GitHub default branch to `main` and protect it (require both CI checks).
 4. Then W2 under the new rules: lesson → owner's chunker spec → implementation → review gate → defend.

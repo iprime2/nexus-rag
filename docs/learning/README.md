@@ -11,4 +11,4 @@ One file per phase. Each explains the concepts that phase relies on, in plain la
 | 1: Foundation | [01-foundation-concepts.md](01-foundation-concepts.md) |
 | 2: Ingestion | [02-ingestion-concepts.md](02-ingestion-concepts.md) (written step by step) |
 
-**Ownership:** [ownership.md](ownership.md) tracks who wrote each module and whether the owner can explain it.
+**Ownership:** [ownership.md](ownership.md) tracks who wrote each module and whether the owner can explain it. [defense-questions.md](defense-questions.md) holds the interview questions that move a module to `partly` / `yes`.
