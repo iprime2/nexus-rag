@@ -1,6 +1,6 @@
 # ADR-0013: Portfolio v1 cut line and target dates
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-25)
 - **Date:** 2026-11-25
 - **Deciders:** project owner
 
@@ -21,8 +21,8 @@ A "portfolio v1" must let an interviewer see, in minutes: a real customer proble
 | Tracing | Langfuse traces for retrieval and generation (self-hosted vs cloud decided in that step) | 2026-12-20 |
 | H1 upload API, H2 Celery workers | As in the roadmap | 2027-01-03 |
 | H4 hybrid retrieval (keyword + RRF) | Measured against the baseline report: keep it only with evidence that it helps | 2027-01-10 |
-| `POST /v1/query` (JSON, not streamed) | Needed so the deployed demo is usable over HTTP, not only from the CLI | 2027-01-10 |
-| One AWS deployment | The simplest setup that runs the stack in one AWS account. ECS + Terraform vs. a single host with Compose is decided in that step, with costs. | 2027-01-17 |
+| `POST /v1/query` with **streamed answers (SSE)** | The deployed demo is used over HTTPS and shows the answer as it is generated; citations are sent at the end of the stream | 2027-01-10 |
+| One AWS deployment, **served over HTTPS** | The simplest setup that runs the stack in one AWS account, with TLS (API keys must never travel over plain HTTP). ECS + Terraform vs. a single host with Compose, and how TLS is terminated, are decided in that step, with costs. | 2027-01-17 |
 | Demo video + README results | Shows only measured numbers | 2027-01-17 |
 
 **Order change on purpose:** the evaluation baseline comes *before* H1–H4. Without a baseline, H4 can't show whether hybrid retrieval actually improves answers.
@@ -36,7 +36,6 @@ A "portfolio v1" must let an interviewer see, in minutes: a real customer proble
 | H5 failure drills (F1–F3, F5, F9, F12) | Time. The CAS/fencing logic already has integration tests. **Until drills run, the README makes no reliability claims beyond those tests.** | First item after v1 |
 | Reranker | Evidence-gated, like ADR-0009 | The evaluation report shows ranking errors that RRF doesn't fix |
 | OCR (Tesseract/OCRmyPDF) | ADR-0012: later; scanned pages are rejected with `NO_TEXT_LAYER` | Scanned FAA documents matter for the golden set |
-| SSE streaming answers | Not needed to show quality; adds client complexity | A UI or a latency requirement needs it |
 | Anthropic / Bedrock providers | OpenAI is enough to prove the design; the provider interface (ADR-0007) stays | Cost comparison or a data-residency need |
 | Users/JWT, document-level ACL, Postgres RLS (Phase 5) | API-key tenant auth and the three isolation layers cover the scenario | A second user role is needed in the demo |
 | Shared Redis token bucket for embedding rate limits | The demo corpus is small; v1 uses retry with backoff on `429` | Measured `429`s with several workers |
@@ -49,6 +48,11 @@ A "portfolio v1" must let an interviewer see, in minutes: a real customer proble
 - **2026-12-13** (end of the walking skeleton): if W4–W5 slipped by more than a week, move tracing after H2.
 - **2026-12-20**: decide on H3 (above).
 - **2027-01-17**: v1 done, or cut the remaining hardening item. **2027-02-15** is the latest date, not a second plan.
+
+### Owner decisions (2026-11-25)
+- Evaluation baseline before H1–H4: **yes**.
+- H3 is the first item cut if the 2026-12-20 checkpoint slips: **yes**.
+- The demo is deployed over **HTTPS with streamed answers**: the owner moved SSE streaming from "deferred" into v1.
 
 ## Alternatives considered
 | Option | Pros | Cons |
