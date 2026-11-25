@@ -32,7 +32,7 @@ _Baseline set 2026-11-25 (mentor review): 32 modules, 0 owner-written. Owner con
 | `core/readiness.py` | Concurrent dependency checks with timeouts | #8 (1.6) | Claude | — | not yet |
 | `core/redis.py` | Redis client factory | #8 (1.6) | Claude | — | not yet |
 | `core/tenancy.py` | `TenantContext` | #10 (2.1) | Claude | — | not yet |
-| `cli.py` | Operator CLI: tenants, keys, `extract`, `check-golden-set` | #10 (2.1), #12 (W1), PR E | Claude | — | not yet |
+| `cli.py` | Operator CLI: tenants, keys, `extract`, `check-golden-set` | #10 (2.1), #12 (W1), #17 | Claude | — | not yet |
 
 ## Auth (`app/auth/`)
 
@@ -70,13 +70,13 @@ _Baseline set 2026-11-25 (mentor review): 32 modules, 0 owner-written. Owner con
 
 | Module | What it does | Introduced | Implemented by | Owner's role | Can explain |
 |---|---|---|---|---|---|
-| `evaluation/golden_set.py` | Golden-set format (pydantic) and checker: line-numbered errors, duplicates, unknown or cancelled documents | PR E | Claude | **design decisions**: Claude drafts / owner verifies + writes ≥⅓ (E1); checker now (E2); starting metrics (E3) | not yet |
+| `evaluation/golden_set.py` | Golden-set format (pydantic) and checker: line-numbered errors, duplicates, unknown or cancelled documents | #17 | Claude | **design decisions**: Claude drafts / owner verifies + writes ≥⅓ (E1); checker now (E2); starting metrics (E3) | not yet |
 
 ## Scripts and datasets
 
 | Module | What it does | Introduced | Implemented by | Owner's role | Can explain |
 |---|---|---|---|---|---|
-| `scripts/fetch_faa_dataset.py` | Download or (`--offline`) check the FAA PDFs; pin and verify SHA-256 | #15 (PR C), PR E | Claude | **decisions**: FAA dataset; browser download + offline mode instead of disguising the script | not yet |
+| `scripts/fetch_faa_dataset.py` | Download or (`--offline`) check the FAA PDFs; pin and verify SHA-256 | #15, #17, PR F | Claude | **decisions**: FAA dataset; browser download + offline mode instead of disguising the script; browser file names + any-folder paths (PR F). **Ran it** on the real files (5/5 pinned). | not yet |
 
 ## Storage (`app/storage/`)
 

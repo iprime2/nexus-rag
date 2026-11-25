@@ -19,7 +19,8 @@ Interview-style questions about everything merged so far. **Questions only, no a
 | #10 API keys (2.1) | 0 | 5 |
 | #11 State machine (2.2) | 0 | 6 |
 | #12 Extraction (W1) | 0 | 5 |
-| **Total** | **0** | **57** |
+| #15–#17 Scenario, dataset, evaluation | 0 | 5 |
+| **Total** | **0** | **62** |
 
 ---
 
@@ -112,3 +113,11 @@ Interview-style questions about everything merged so far. **Questions only, no a
 - [ ] **(what if)** A scanned PDF (only images) is uploaded. What does the pipeline do, and why is it a *permanent* error and not a retry? — *ingestion/extraction/pipeline.py*
 - [ ] **(code)** `reader.decrypt("")` was first assumed to raise on a wrong password. What does it actually do, and how did that misreport encrypted PDFs? — *ingestion/extraction/pdf.py*
 - [ ] **(alt)** pypdf vs. Docling vs. a vision LLM for extraction: when would you choose each, and how would you decide with evidence? — *ADR-0012*
+
+## #15–#17 Scenario, dataset and evaluation (PRs C–F)
+
+- [ ] **(code)** A golden-set line has `"type": "unanswerable"`, `"answerable": false` and one item in `evidence`. What does `check-golden-set` report, and why is that rule there? — *evaluation/golden_set.py* (review question R1, PR E)
+- [ ] **(what if)** You save faa.gov's "Access Denied" page as a `.pdf` and run `--offline --pin`. What happens to that row's checksum, and why is that the right behaviour? — *scripts/fetch_faa_dataset.py* (R2)
+- [ ] **(code)** `if (self.type == "unanswerable") == self.answerable: raise …` In plain words, when does it raise? Give one input that passes and one that fails. — *evaluation/golden_set.py* (R3)
+- [ ] ⭐ **(why)** Why can't a similarity threshold stop answers from a cancelled revision, and what does? — *docs/learning/06-evaluation-concepts.md*
+- [ ] **(why)** Why pin a SHA-256 per dataset file, and why not make the script look like a browser when faa.gov returned 403? — *datasets/faa/manifest.csv*

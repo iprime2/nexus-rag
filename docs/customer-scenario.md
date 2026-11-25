@@ -69,7 +69,7 @@ uv run python -m scripts.fetch_faa_dataset --pin
 This downloads into `data/raw/faa/` (gitignored), rejects anything that isn't a PDF, and with `--pin` writes each file's SHA-256 into the manifest. Commit the pinned manifest: later runs then detect if the FAA replaced a file behind the same URL (which is how a new revision or editorial update shows up).
 
 **faa.gov blocks scripted downloads** (HTTP 403 from a cloud container and from a home Mac, 2026-11-25). We don't disguise the script as a browser, because that would work around the site's bot protection. Instead:
-1. Open each URL from the manifest in a browser and save the PDF into `data/raw/faa/` under the name the script expects (`AC 43-9D` → `AC_43-9D.pdf`; spaces become `_`).
+1. Open each URL from the manifest in a browser and save the PDF into `data/raw/faa/`, keeping the name the browser gives it (the last part of the URL, e.g. `AC43-9C.pdf`). Save each file once: a second download becomes `AC43-9C (1).pdf`, which the script ignores.
 2. Check and pin them without downloading:
    ```bash
    uv run python -m scripts.fetch_faa_dataset --offline --pin
