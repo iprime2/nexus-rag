@@ -5,7 +5,7 @@
 How to read and update this file:
 - **Implemented by** comes from git history. Every module so far was written by Claude (AI). No row is overstated.
 - **Owner's role** records what the owner did: *spec* (wrote the behaviour/test cases), *design* (decided the approach), *review* (passed the review gate), *defended* (answered the "Defend the PR" questions).
-- **Can explain** starts at `not yet`. It moves to `partly` or `yes` only after the owner answers that module's questions in `docs/learning/defense-questions.md` (or a "Defend the PR" check) without hints. Claude updates it after the check; the owner can always downgrade it.
+- **Can explain** starts at `not yet`. It moves to `partly` or `yes` only after the owner answers that module's questions in [defense-questions.md](defense-questions.md) (or a "Defend the PR" check) without hints. Claude updates it after the check; the owner can always downgrade it.
 
 _Baseline set 2026-11-25 (mentor review): 32 modules, 0 owner-written. Owner contributions so far are two designs, both typed by Claude._
 
