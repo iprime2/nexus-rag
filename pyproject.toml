@@ -57,7 +57,7 @@ python_version = "3.12"
 plugins = ["pydantic.mypy"]
 strict = true
 warn_unreachable = true
-files = ["app", "tests"]
+files = ["app", "scripts", "tests"]
 
 [tool.pydantic-mypy]
 # Type-check the keyword arguments passed to model constructors, e.g. Settings(debug="yes").

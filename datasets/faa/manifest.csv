@@ -1,0 +1,6 @@
+doc_id,title,status,superseded_by,url,sha256
+AC 43.13-1B CHG 1,"Acceptable Methods, Techniques, and Practices - Aircraft Inspection and Repair",active,,https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC_43.13-1B_w-chg1.pdf,
+AC 43-9D,Maintenance Records and FAA Form 8130-3 Return to Service,active,,https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC_43-9D.pdf,
+AC 43-9C,Maintenance Records,cancelled,AC 43-9D,https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC43-9C.pdf,
+AC 120-16G,Air Carrier Maintenance Programs,active,,https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC_120-16G.pdf,
+AC 120-16E CHG 1,Air Carrier Maintenance Programs,cancelled,AC 120-16G,https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC_120-16E_CHG_1.pdf,

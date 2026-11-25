@@ -4,6 +4,8 @@
 
 **Distributed Enterprise Retrieval-Augmented Generation Platform**
 
+> **Scenario:** SkyBridge Regional (fictional) is an airline whose maintenance technicians and quality team need answers buried in hundreds of FAA Advisory Circulars, **cited to the page and only from current revisions**. NexusRAG is built and evaluated against that use case with real, public FAA documents. See [docs/customer-scenario.md](docs/customer-scenario.md).
+
 NexusRAG is a multi-tenant document intelligence backend. It ingests batches of 500–1,000+ documents through horizontally scalable workers, indexes them for hybrid (semantic + keyword) retrieval, and answers questions with streamed, cited responses, restricted to documents the caller is authorized to see.
 
 The focus is the engineering a production RAG system needs and a demo skips:
@@ -12,7 +14,7 @@ The focus is the engineering a production RAG system needs and a demo skips:
 - **Hard tenant isolation:** enforced by credentials, database constraints, mandatory vector filters and post-retrieval verification. Never by the LLM.
 - **Measured quality and performance:** a reproducible evaluation set and benchmarks. No unmeasured claims.
 
-> **Status:** Phase 1 (project foundation) in progress. See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
+> **Status:** foundation done; building the walking skeleton (W1 extraction done). See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
 
 ## Architecture
 
