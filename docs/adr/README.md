@@ -18,5 +18,6 @@ Status values: `Proposed` → `Accepted` | `Rejected`; later `Superseded by ADR-
 | [0010](0010-two-stage-worker-pipeline.md) | Two-stage worker pipeline | Accepted |
 | [0011](0011-seaweedfs-for-local-object-storage.md) | SeaweedFS as the local S3-compatible store (refines 0005) | Accepted |
 | [0012](0012-document-extraction-and-ocr.md) | Document text extraction, cleaning and OCR | Accepted |
+| [0013](0013-portfolio-v1-cut-line.md) | Portfolio v1 cut line and target dates | Proposed |
 
 Template: [template.md](template.md).
