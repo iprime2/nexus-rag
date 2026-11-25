@@ -13,8 +13,10 @@ import pytest
 
 from scripts.fetch_faa_dataset import (
     ManifestEntry,
+    check_local,
     fetch_all,
     file_name,
+    main,
     read_manifest,
     write_manifest,
 )
@@ -138,3 +140,56 @@ def test_committed_manifest_is_valid() -> None:
 )
 def test_file_name_is_safe_and_readable(doc_id: str, expected: str) -> None:
     assert file_name(entry(doc_id)) == expected
+
+
+# --- offline mode: the owner downloads the PDFs in a browser (faa.gov blocks scripts) ---
+
+
+def test_offline_reports_a_missing_file_with_its_download_url(tmp_path: Path) -> None:
+    result = check_local(entry(), tmp_path)
+
+    assert result.outcome == "failed"
+    assert "missing" in result.detail
+    assert entry().url in result.detail  # tells the owner where to download it
+
+
+def test_offline_finds_an_unpinned_pdf_and_computes_its_checksum(tmp_path: Path) -> None:
+    (tmp_path / file_name(entry())).write_bytes(PDF)
+
+    result = check_local(entry(), tmp_path)
+
+    assert result.outcome == "found"
+    assert result.sha256 == PDF_SHA
+
+
+def test_offline_verifies_a_pinned_checksum(tmp_path: Path) -> None:
+    (tmp_path / file_name(entry())).write_bytes(PDF)
+
+    assert check_local(entry(sha256=PDF_SHA), tmp_path).outcome == "skipped"
+    mismatch = check_local(entry(sha256="0" * 64), tmp_path)
+    assert mismatch.outcome == "failed"
+    assert "checksum mismatch" in mismatch.detail
+
+
+def test_offline_rejects_a_saved_html_page(tmp_path: Path) -> None:
+    # "Save as" on an error page gives an HTML file with a .pdf name.
+    (tmp_path / file_name(entry())).write_bytes(b"<html>Access Denied</html>")
+
+    result = check_local(entry(), tmp_path)
+
+    assert result.outcome == "failed"
+    assert "not a PDF" in result.detail
+
+
+def test_main_offline_pin_writes_checksums_only_for_found_files(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.csv"
+    out = tmp_path / "raw"
+    out.mkdir()
+    write_manifest(manifest, [entry("AC 43-9C"), entry("AC 43-9D")])
+    (out / file_name(entry("AC 43-9D"))).write_bytes(PDF)
+
+    exit_code = main(["--offline", "--pin", "--manifest", str(manifest), "--out", str(out)])
+
+    rows = {r.doc_id: r.sha256 for r in read_manifest(manifest)}
+    assert rows == {"AC 43-9C": "", "AC 43-9D": PDF_SHA}
+    assert exit_code == 1  # one file is still missing
