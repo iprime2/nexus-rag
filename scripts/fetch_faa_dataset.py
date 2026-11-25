@@ -7,6 +7,10 @@ Usage (run on your own machine; this downloads public US-government PDFs):
     uv run python -m scripts.fetch_faa_dataset --offline --pin
         # no downloads: check PDFs you saved from a browser into data/raw/faa/ and pin them
 
+Files are named after the last part of their URL (e.g. AC43-9C.pdf): the name a browser
+gives a download, so saved files never need renaming. Default paths are resolved from the
+repository root, so the script works from any folder.
+
 faa.gov answers 403 to non-browser clients (seen from a cloud container and from a home Mac,
 2026-11-25). We do not disguise the script as a browser: that would work around the site's bot
 protection. Instead, download the files in a browser and use --offline.
@@ -22,17 +26,20 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
-import re
 import sys
 import time
 from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 from typing import Literal
+from urllib.parse import unquote, urlsplit
 
 import httpx
 
-MANIFEST = Path("datasets/faa/manifest.csv")
-OUTPUT_DIR = Path("data/raw/faa")
+# Resolved from this file, not the current folder: running the script from inside
+# data/raw/faa/ must still find the manifest.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MANIFEST = REPO_ROOT / "datasets" / "faa" / "manifest.csv"
+OUTPUT_DIR = REPO_ROOT / "data" / "raw" / "faa"
 # Generic client name: no personal details in requests to outside services.
 USER_AGENT = "nexus-rag-dataset-fetcher/0.1"
 DELAY_S = 2.0  # be polite to a public government site
@@ -77,8 +84,21 @@ def write_manifest(path: Path, entries: list[ManifestEntry]) -> None:
 
 
 def file_name(entry: ManifestEntry) -> str:
-    """'AC 43.13-1B CHG 1' -> 'AC_43.13-1B_CHG_1.pdf' (no spaces, no path separators)."""
-    return re.sub(r"[^A-Za-z0-9.\-]+", "_", entry.doc_id).strip("_") + ".pdf"
+    """The last part of the URL, decoded: the name a browser's "Save" gives the file.
+
+    'https://…/AC43-9C.pdf?pubDate=1' -> 'AC43-9C.pdf'. Raises ValueError for a name that
+    could escape the output folder (an encoded '/' such as '..%2F') or isn't a PDF.
+    """
+    name = unquote(urlsplit(entry.url).path.rsplit("/", 1)[-1])
+    if (
+        not name
+        or "/" in name
+        or "\\" in name
+        or name.startswith(".")
+        or not name.lower().endswith(".pdf")
+    ):
+        raise ValueError(f"unsafe or non-PDF file name {name!r} in URL {entry.url}")
+    return name
 
 
 def _sha256(data: bytes) -> str:

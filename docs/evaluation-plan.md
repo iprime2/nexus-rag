@@ -84,7 +84,7 @@ The metric *functions* are core logic: the owner writes their spec when we build
 
 | When | What |
 |---|---|
-| Now | Owner downloads the 5 PDFs in a browser; `python -m scripts.fetch_faa_dataset --offline --pin` |
+| ✅ 2026-11-25 | Owner downloaded the 5 PDFs in a browser and pinned their SHA-256 (`--offline --pin`) |
 | After W3 (from 2026-12-07) | Claude drafts candidates; the owner verifies them and writes their own |
 | After W5 (2026-12-13) | Metric specs (owner) → metric code → first run |
 | **2026-12-20** | Baseline report + Langfuse tracing |

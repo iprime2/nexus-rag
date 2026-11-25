@@ -6,6 +6,7 @@ pin, reject non-PDFs) is tested here, but the real FAA URLs are not.
 
 import csv
 import hashlib
+from dataclasses import replace
 from pathlib import Path
 
 import httpx
@@ -134,12 +135,39 @@ def test_committed_manifest_is_valid() -> None:
             assert r.superseded_by in ids
 
 
+def test_committed_manifest_pins_every_file() -> None:
+    # The owner pinned all five files (2026-11-25); an unpinned row would let a changed
+    # file slip into the evaluation unnoticed.
+    for r in read_manifest(Path("datasets/faa/manifest.csv")):
+        assert len(r.sha256) == 64, f"{r.doc_id} is not pinned"
+
+
+# The local file name is the last part of the URL: exactly what a browser's "Save" uses,
+# so the owner never has to rename a download.
 @pytest.mark.parametrize(
-    ("doc_id", "expected"),
-    [("AC 43.13-1B CHG 1", "AC_43.13-1B_CHG_1.pdf"), ("AC 43-9D", "AC_43-9D.pdf")],
+    ("url", "expected"),
+    [
+        ("https://www.faa.gov/a/b/AC_43.13-1B_w-chg1.pdf", "AC_43.13-1B_w-chg1.pdf"),
+        ("https://www.faa.gov/a/AC43-9C.pdf", "AC43-9C.pdf"),
+        ("https://www.faa.gov/a/AC_120-124.pdf?pubDate=20260430", "AC_120-124.pdf"),
+        ("https://www.faa.gov/a/AC%2025-27.pdf", "AC 25-27.pdf"),  # browsers decode %20
+    ],
 )
-def test_file_name_is_safe_and_readable(doc_id: str, expected: str) -> None:
-    assert file_name(entry(doc_id)) == expected
+def test_file_name_is_what_a_browser_saves(url: str, expected: str) -> None:
+    assert file_name(replace(entry(), url=url)) == expected
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://evil.test/..%2F..%2F.ssh%2Fauthorized_keys.pdf",  # path traversal
+        "https://www.faa.gov/a/index.html",  # not a PDF
+        "https://www.faa.gov/",  # no file name
+    ],
+)
+def test_file_name_rejects_unsafe_or_non_pdf_urls(url: str) -> None:
+    with pytest.raises(ValueError, match="file name"):
+        file_name(replace(entry(), url=url))
 
 
 # --- offline mode: the owner downloads the PDFs in a browser (faa.gov blocks scripts) ---
@@ -193,3 +221,15 @@ def test_main_offline_pin_writes_checksums_only_for_found_files(tmp_path: Path) 
     rows = {r.doc_id: r.sha256 for r in read_manifest(manifest)}
     assert rows == {"AC 43-9C": "", "AC 43-9D": PDF_SHA}
     assert exit_code == 1  # one file is still missing
+
+
+def test_default_paths_work_from_any_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The owner ran the script from inside data/raw/faa/ and got FileNotFoundError for the
+    # manifest. Defaults are resolved from the repository root, not the current folder.
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["--offline", "--out", str(tmp_path)])
+
+    assert exit_code == 1  # the default manifest was found; its files are just not in tmp_path

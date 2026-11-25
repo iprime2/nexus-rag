@@ -141,10 +141,48 @@ Every later stage (chunks, embeddings, retrieval, the LLM's answer) sees only th
 | Real content deleted as boilerplate on short pages | "First 3 + last 3 lines" covered the whole page | Cap edges at half the page; ignore long lines |
 | Tests failing on correct code | Test data varied only by numbers, which *is* a footer after normalization | Test data must look like real documents |
 
+### Key decisions (ADR-0012)
+| Decision | Why | Alternative and when to switch |
+|---|---|---|
+| **pypdf**, page by page | BSD licence, pure Python, light; per-page text gives page citations | Docling (layout, tables) if the evaluation shows table or reading-order failures |
+| **Own cleaning code** | Small, testable, and the owner designed the header/footer rule | Unstructured / Docling cleaning when formats multiply (H3) |
+| **Guard, not repair**, for scanned pages | Rejecting with `NO_TEXT_LAYER` is honest; OCR is slow and a separate concern | Tesseract + OCRmyPDF (planned), cloud OCR (Textract) on AWS |
+| **Permanent** error for no text | Retrying an image-only PDF gives the same result every time | — |
+
+### What breaks if it's done wrong
+| Mistake | Symptom you'd see | What protects us |
+|---|---|---|
+| One string per document | No page numbers → citations impossible | `PageText` per page (test: page numbers survive) |
+| Boilerplate detector too greedy | Real sentences vanish on short pages | Edge cap + max line length (tests with 1-, 2-, 7-line pages) |
+| Treat a scan as an empty success | The document is "ingested" but never retrieved: a silent hole | Guard + `NO_TEXT_LAYER` (test with an image-only PDF) |
+| Treat an encrypted PDF as corrupt | Wrong error message; operator can't act | Explicit `ENCRYPTED_DOCUMENT` (test with a password PDF) |
+
+### Garbled text layers (owner's question, 2026-11-25)
+Some old PDFs (likely AC 43-9C, from 1998) are scans with a **bad OCR text layer**: the title reads "U.S. Defxlmmt of Wanspoctation". Our guard only rejects pages with *no* text, so this passes.
+
+| Approach | Problem |
+|---|---|
+| Keep it | Garbage gets embedded. It is never retrieved (a silent gap), or is retrieved and quoted. |
+| Silently delete it | Also a silent gap: the answer was on that page, and nobody knows why the system says "I don't know". |
+| ✅ **Detect, flag, re-OCR** | Score each page (e.g. the share of words found in a dictionary), mark low scores as `LOW_QUALITY_TEXT`, log them, and re-run OCR on the page image later. |
+
+**Owner's answer:** "remove the garbled text". Right instinct (don't embed garbage), but removal must be *visible* (flagged and logged), and needs a detector first.
+
+### OCR options (summary; full catalogue in ADR-0012)
+| Tool | Type | Trade-off |
+|---|---|---|
+| Tesseract + OCRmyPDF (planned) | Local, free | Seconds per page on CPU |
+| docTR, PaddleOCR | Local deep learning | More accurate, heavier |
+| AWS Textract | Cloud, per page | Fits the AWS deployment; tables and forms |
+| Vision LLMs | Any LLM API | Great on messy layouts, but **can invent text**: dangerous when answers must quote sources |
+
 ### Exercises
 1. Run `extract` on a real PDF of yours. Which headers were removed? Anything wrongly removed?
 2. Find a word that the hyphenation rule joins incorrectly. *(Hint: compound words.)*
+3. Run `uv run python -m app.cli extract data/raw/faa/AC43-9C.pdf`. Is the text readable? Would our guard accept it? What would a "dictionary word ratio" be for its first page?
 
 ### Interview questions
 - **"How do you handle PDFs in a RAG pipeline?"** Per-page extraction (for citations), cleaning (boilerplate, hyphenation, Unicode), guards for scanned documents, OCR as a separate slow path, and evaluation-driven choice of extractor.
 - **"Build or buy document parsing?"** Start simple and permissive-licensed behind an interface; evaluate heavier tools (Docling, Textract) against your own eval set; watch AGPL/GPL licenses for hosted services.
+- **"What do you do with a scanned PDF that has a bad OCR layer?"** Don't trust "has text" as "has good text": score text quality per page, flag low-quality pages visibly, and re-OCR them. Never drop content silently.
+- **"Why is 'no text layer' a permanent error?"** Retrying is deterministic: the same file gives the same result. Retries are for transient failures (timeouts, 429s); permanent ones go straight to a clear error an operator can act on.
