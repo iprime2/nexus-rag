@@ -1,9 +1,23 @@
 # NexusRAG — Project Status
 
-_Last updated: 2026-11-24_
+_Last updated: 2026-11-25_
 
 ## Current phase
-**Walking skeleton (Phases 2–4 reordered, 2026-11-24)**. Steps 2.1–2.2 and W1 done; next: W2 chunking. Goal: ask questions about your own documents end to end, *then* harden ingestion.
+**Mentor-review follow-up (PRs A–F), then walking skeleton W2.** Steps 2.1–2.2 and W1 done. Goal: ask questions about your own documents end to end, *then* harden ingestion.
+
+## Mentor review (2026-11-25) and follow-up plan
+A senior-FDE mentor reviewed the foundation. Strengths: typed config, structured logging, async DB + Alembic, API-key tenant auth, CAS state machine with fencing, CI, ADRs, docs. Problems, in priority order: (1) ownership gap: all code is AI-written; (2) no AI functionality yet; (3) no evaluation set; (4) no believable customer scenario or real dataset; (5) scope risk against the 15 Feb 2027 portfolio milestone (two more projects follow).
+
+**Owner decisions (2026-11-25):** ~10 hours/week on NexusRAG. Working model: **specify → Claude implements → owner reviews and defends** (the owner doesn't hand-write code); see `CLAUDE.md` → Ownership rules. Hint ladder accepted. The owner reviews in a local editor.
+
+| PR | Scope | Status |
+|---|---|---|
+| A | Ownership rules in `CLAUDE.md`; `docs/learning/ownership.md` baseline | 🟡 In review |
+| B | `docs/learning/defense-questions.md`: questions for PRs #3–#12 + design (ADR) questions | ⚪ |
+| C | Customer scenario + real, licence-safe dataset (owner picks from 3 options) | ⚪ |
+| D | Portfolio v1 cut line (ADR) + target dates (W2–W5 by 2026-12-06) | ⚪ |
+| E | `docs/evaluation-plan.md` + `eval/` golden-set schema (no new dependencies yet) | ⚪ |
+| F | Housekeeping: complete W1 learning notes; default-branch reminder | ⚪ |
 
 ## Phase overview
 | Phase | Name | Status |
@@ -65,6 +79,7 @@ Build a thin end-to-end RAG path early (synchronous, driven from the CLI), so th
 - The GitHub default branch may still point at the first pushed branch. Set it to `main` in repository settings.
 
 ## Next recommended steps
-1. Owner reviews the W1 PR (review questions in chat) and merges it.
-2. Owner: set the default branch to `main` and protect it (require both CI checks).
-3. W2: lesson on chunking, then the owner's spec, then implementation (CLI `ingest`).
+1. Owner reviews and merges PR A (ownership rules).
+2. PRs B–F in order, each proposed in chat and approved before implementation.
+3. Owner: set the GitHub default branch to `main` and protect it (require both CI checks).
+4. Then W2 under the new rules: lesson → owner's chunker spec → implementation → review gate → defend.

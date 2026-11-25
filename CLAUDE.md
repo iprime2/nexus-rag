@@ -18,16 +18,37 @@ Whenever you design, write or change code:
 **Teaching happens in the conversation, not only in docs (owner feedback, 2026-11-24).** A summary of finished work is not teaching. For every step:
 1. **Lesson first, in chat:** one concept at a time, with a concrete scenario (timeline or failure story), the naive approach, why it breaks, and the fix. Before any code is written.
 2. **Check understanding:** end each lesson with 1–2 questions. Wait for the owner's answers, give honest feedback (what was right, what to correct), then continue.
-3. **The owner writes a key piece:** each step includes a small hands-on task (a function, a test, a design decision) that the owner writes. Review it like a senior engineer, then commit it, credited.
+3. **The owner owns each step through spec, review and defense** (see "Ownership rules" below).
 4. **Connect to the big picture:** say where the step sits in the RAG pipeline and why it matters for AI quality or for interviews.
 5. Then build the rest, run tests, and summarize briefly. `docs/learning/` is for revision, not a replacement for the lesson.
+
+## Ownership rules (from W2, 2026-11-25)
+
+**Why:** a mentor review found an ownership gap: the code was AI-written and the owner could not yet defend it. The owner's decided working model is *specify → AI implements → owner reviews and defends* (owner decision, 2026-11-25; the owner does not write code by hand). The goal is unchanged: **the owner can defend every file in an interview.**
+
+| Step | Owner | Claude |
+|---|---|---|
+| 1. Lesson | Answers the check-understanding questions | Teaches the concept first, in chat |
+| 2. **Spec** | **Writes the spec** for the core logic: behaviour, inputs/outputs, edge cases, at least 3 test cases | Asks clarifying questions. **Never writes the spec for the owner.** |
+| 3. Build | — | Implements to the owner's spec, tests first, plus glue (wiring, CLI, migrations, config, docs) |
+| 4. **Review gate** | Answers 2–3 targeted review questions (*predict the output*, *find the bug*, *what happens if…*) | Walks through the diff; fixes what the review finds |
+| 5. **Defend the PR** | Answers 3 interview-style questions in chat, **at least one of them a code-reading question** (explain a snippet, predict its output, or spot a bug) | Gives honest feedback; records "Defended ✅" in the PR description. **Does not merge a step PR until it is defended.** |
+| 6. Ownership | — | Updates `docs/learning/ownership.md` (owner's role, "can explain" status) |
+
+**Core logic** whose spec must come from the owner: W2 chunker · W3 embedding batcher · W4 vector search query and tenant filter · W5 prompt assembly and citation parsing · H4 RRF fusion · evaluation metric functions.
+
+**Decisions stay with the owner.** When the owner says "just do it", Claude presents options with a recommendation and lets the owner choose; it never makes a design decision silently.
+
+**Hint ladder** (when the owner is stuck on a spec, review or defense question): 1) a guiding question → 2) the docs or API to look at → 3) a worked example of a *similar* problem → 4) the answer, with an explanation the owner then restates in their own words.
+
+**Honest attribution:** git shows Claude as the code author. `docs/learning/ownership.md` records what the owner specified, reviewed and can explain. Never overstate either side.
 
 **Communication style (owner preference):** each message focused and easy to scan (tables, short bullets). Brief per message, but never shallow: cover the concept properly across a few exchanges rather than skipping it.
 
 When the owner asks a question, teach the underlying engineering concept, don't just hand over code. If the owner proposes a flawed design, challenge it and explain the consequences.
 
 ## Development workflow
-1. Understand the requirement → 2. explain the design → 3. alternatives and trade-offs → 4. implementation plan → **5. wait for approval** → 6. implement a small piece → 7. explain changes → 8. write **and run** tests → 9. review edge and failure cases → 10. document → 11. update `docs/PROJECT_STATUS.md`.
+1. Lesson + check questions → 2. design, alternatives and trade-offs → 3. **owner's spec** → 4. implementation plan → **5. wait for approval** → 6. implement a small piece (tests first) → 7. explain changes → 8. **run** the tests → 9. **owner's review gate** (edge and failure cases) → 10. document → 11. **Defend the PR** → 12. merge → 13. update `docs/PROJECT_STATUS.md` and `docs/learning/ownership.md`.
 
 ## Hard rules
 - Do not change the approved architecture silently. Propose an ADR in `docs/adr/` instead.
@@ -43,3 +64,4 @@ When the owner asks a question, teach the underlying engineering concept, don't 
 - `docs/PROJECT_STATUS.md`: current phase and next steps (keep it updated)
 - `docs/adr/`: decisions and their reasons
 - `docs/learning/`: concept notes and interview prep per phase
+- `docs/learning/ownership.md`: who wrote each module and whether the owner can explain it
