@@ -14,8 +14,8 @@ A senior-FDE mentor reviewed the foundation. Strengths: typed config, structured
 |---|---|---|
 | A | Ownership rules in `CLAUDE.md`; `docs/learning/ownership.md` baseline | ✅ #13 |
 | B | `docs/learning/defense-questions.md`: 57 questions for PRs #3–#12 + design (ADR) questions | ✅ #14 |
-| C | Customer scenario (SkyBridge Regional, fictional) + FAA Advisory Circular dataset: `docs/customer-scenario.md`, `datasets/faa/manifest.csv`, `scripts/fetch_faa_dataset.py` | 🟡 In review |
-| D | Portfolio v1 cut line (ADR) + target dates (W2–W5 by 2026-12-06) | ⚪ |
+| C | Customer scenario (SkyBridge Regional, fictional) + FAA Advisory Circular dataset: `docs/customer-scenario.md`, `datasets/faa/manifest.csv`, `scripts/fetch_faa_dataset.py` | ✅ #15 |
+| D | Portfolio v1 cut line + target dates: ADR-0013 (W2–W3 by 2026-12-06, W4–W5 by 2026-12-13, v1 by 2027-01-17) | ✅ #16 |
 | E | `docs/evaluation-plan.md` + `eval/` golden-set schema (no new dependencies yet) | ⚪ |
 | F | Housekeeping: complete W1 learning notes; default-branch reminder | ⚪ |
 
@@ -59,18 +59,23 @@ Decisions (2026-11-22): minimal API-key auth now (users/JWT in Phase 5); `pypdf`
 ### Roadmap change (owner decision, 2026-11-24): walking skeleton first
 Build a thin end-to-end RAG path early (synchronous, driven from the CLI), so the AI parts are visible and testable sooner, then harden it with the upload API, Celery and failure drills. Interfaces from the design are kept, so little is rewritten. OpenAI is the first provider for embeddings and answers (owner has a key); the provider abstraction stays.
 
-| Step | What | AI / architecture lesson |
-|---|---|---|
-| W1 ✅ | Text extraction + cleaning (PDF, TXT) as pure pipeline stages; ADR-0012 | Why extraction quality bounds answer quality |
-| W2 | Token-aware chunking → `document_chunks` (CLI `ingest`) | Chunk size trade-offs, tokens, overlap |
-| W3 | Embeddings: `EmbeddingProvider` + OpenAI, batching | What embeddings are; cosine similarity |
-| W4 | Qdrant indexing + semantic search (CLI `search`) | Vector databases, HNSW, tenant filters |
-| W5 | Grounded answers with citations (CLI `ask`) | Prompting, grounding, hallucination control |
-| H1 | Object storage + upload API (202, dedupe) | Streaming uploads, idempotent registration |
-| H2 | Celery workers, leases, sweeper | At-least-once delivery in practice |
-| H3 | DOCX/HTML extractors, deep validation | Untrusted input handling |
-| H4 | Keyword search + RRF hybrid, reranking | Hybrid retrieval |
-| H5 | Failure drills (F1–F3, F5, F9, F12) | Proving reliability |
+Target dates and the v1 cut line: [ADR-0013](adr/0013-portfolio-v1-cut-line.md). Order: W2–W5 → evaluation baseline + tracing → H1, H2 → H4 → AWS + demo. H3 only if the 2026-12-20 checkpoint is on time; H5 after v1.
+
+| Step | What | AI / architecture lesson | Target |
+|---|---|---|---|
+| W1 ✅ | Text extraction + cleaning (PDF, TXT) as pure pipeline stages; ADR-0012 | Why extraction quality bounds answer quality | done |
+| W2 | Token-aware chunking → `document_chunks` (CLI `ingest`) | Chunk size trade-offs, tokens, overlap | 2026-12-06 |
+| W3 | Embeddings: `EmbeddingProvider` + OpenAI, batching | What embeddings are; cosine similarity | 2026-12-06 |
+| W4 | Qdrant indexing + semantic search (CLI `search`) | Vector databases, HNSW, tenant filters | 2026-12-13 |
+| W5 | Grounded answers with citations (CLI `ask`) | Prompting, grounding, hallucination control | 2026-12-13 |
+| EV | Evaluation set (30–50 owner-verified questions) + baseline report; Langfuse tracing | Measuring RAG quality; tracing LLM calls | 2026-12-20 |
+| H1 | Object storage + upload API (202, dedupe) | Streaming uploads, idempotent registration | 2027-01-03 |
+| H2 | Celery workers, leases, sweeper | At-least-once delivery in practice | 2027-01-03 |
+| H3 | DOCX/HTML extractors, deep validation | Untrusted input handling | if on time (first cut) |
+| H4 | Keyword search + RRF hybrid (reranker deferred, ADR-0013) | Hybrid retrieval, measured against the baseline | 2027-01-10 |
+| Q | `POST /v1/query` with streamed answers (SSE) | Streaming LLM output; citations at the end of the stream | 2027-01-10 |
+| D1 | One AWS deployment over HTTPS + demo video + README results | Deploying to a customer-like environment; TLS | 2027-01-17 (**v1**) |
+| H5 | Failure drills (F1–F3, F5, F9, F12) | Proving reliability | after v1 |
 
 - [ ] Learning notes: `docs/learning/02-ingestion-concepts.md` (steps 2.1–2.2, W1 written)
 
@@ -79,7 +84,7 @@ Build a thin end-to-end RAG path early (synchronous, driven from the CLI), so th
 - The GitHub default branch may still point at the first pushed branch. Set it to `main` in repository settings.
 
 ## Next recommended steps
-1. Owner reviews PR C and runs `uv run python -m scripts.fetch_faa_dataset --pin` locally (faa.gov is blocked in the dev sandbox, so no real download has been verified yet); verify the AC statuses. Keep answering ⭐ defense questions (2–3 per session).
-2. PRs C–F in order, each proposed in chat and approved before implementation.
+1. PR E (evaluation plan): propose in chat, wait for approval. Owner runs `uv run python -m scripts.fetch_faa_dataset --pin` locally (faa.gov answers 403 to downloads from the cloud dev container, so no real download has been verified yet) and verifies the AC statuses. Keep answering ⭐ defense questions (2–3 per session).
+2. PR F after E, proposed in chat and approved before implementation.
 3. Owner: set the GitHub default branch to `main` and protect it (require both CI checks).
 4. Then W2 under the new rules: lesson → owner's chunker spec → implementation → review gate → defend.
