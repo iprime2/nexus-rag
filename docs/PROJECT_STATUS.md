@@ -16,7 +16,7 @@ A senior-FDE mentor reviewed the foundation. Strengths: typed config, structured
 | B | `docs/learning/defense-questions.md`: 57 questions for PRs #3–#12 + design (ADR) questions | ✅ #14 |
 | C | Customer scenario (SkyBridge Regional, fictional) + FAA Advisory Circular dataset: `docs/customer-scenario.md`, `datasets/faa/manifest.csv`, `scripts/fetch_faa_dataset.py` | ✅ #15 |
 | D | Portfolio v1 cut line + target dates: ADR-0013 (W2–W3 by 2026-12-06, W4–W5 by 2026-12-13, v1 by 2027-01-17) | ✅ #16 |
-| E | `docs/evaluation-plan.md` + `eval/` golden-set schema (no new dependencies yet) | ⚪ |
+| E | `docs/evaluation-plan.md`, `eval/` + golden-set format checker (`check-golden-set`); fetcher `--offline` mode | 🟡 In review |
 | F | Housekeeping: complete W1 learning notes; default-branch reminder | ⚪ |
 
 ## Phase overview
@@ -81,10 +81,9 @@ Target dates and the v1 cut line: [ADR-0013](adr/0013-portfolio-v1-cut-line.md).
 
 ## Known issues
 - The cloud development container can run Docker (started manually), but image builds there need the sandbox proxy's CA mounted as a build secret. This is a sandbox-only workaround, not part of the committed Dockerfile.
-- The GitHub default branch may still point at the first pushed branch. Set it to `main` in repository settings.
 
 ## Next recommended steps
-1. PR E (evaluation plan): propose in chat, wait for approval. Owner runs `uv run python -m scripts.fetch_faa_dataset --pin` locally (faa.gov answers 403 to downloads from the cloud dev container, so no real download has been verified yet) and verifies the AC statuses. Keep answering ⭐ defense questions (2–3 per session).
+1. Owner downloads the 5 FAA PDFs in a browser (faa.gov answers 403 to scripts, also from the owner's Mac) into `data/raw/faa/`, then runs `uv run python -m scripts.fetch_faa_dataset --offline --pin` and verifies the AC statuses. Keep answering ⭐ defense questions (2–3 per session).
 2. PR F after E, proposed in chat and approved before implementation.
-3. Owner: set the GitHub default branch to `main` and protect it (require both CI checks).
+3. Owner: protect `main` (require both CI checks). The default branch is `main` since 2026-11-25.
 4. Then W2 under the new rules: lesson → owner's chunker spec → implementation → review gate → defend.

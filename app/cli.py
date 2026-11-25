@@ -4,6 +4,7 @@
     uv run python -m app.cli create-api-key --tenant acme --name ci-uploader
     uv run python -m app.cli revoke-api-key <key-id>
     uv run python -m app.cli extract path/to/file.pdf
+    uv run python -m app.cli check-golden-set [eval/golden_set.jsonl]
 
 In Docker Compose: ``docker compose exec api python -m app.cli …``.
 
@@ -13,8 +14,10 @@ docs/api-specification.md §2).
 
 import argparse
 import asyncio
+import csv
 import sys
 import uuid
+from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -23,6 +26,7 @@ from sqlalchemy.exc import IntegrityError
 from app.auth.service import create_tenant, get_tenant_by_slug, issue_api_key, revoke_api_key
 from app.core.config import Settings, get_settings
 from app.db.session import create_engine, create_sessionmaker
+from app.evaluation.golden_set import validate_golden_set
 from app.ingestion.extraction import ExtractionError, extract_document
 
 
@@ -45,6 +49,12 @@ def build_parser() -> argparse.ArgumentParser:
         "extract", help="show the cleaned text extracted from a local PDF or TXT file"
     )
     extract.add_argument("path", type=Path)
+
+    golden = commands.add_parser(
+        "check-golden-set", help="validate the evaluation question set and print a summary"
+    )
+    golden.add_argument("path", type=Path, nargs="?", default=Path("eval/golden_set.jsonl"))
+    golden.add_argument("--manifest", type=Path, default=Path("datasets/faa/manifest.csv"))
     return parser
 
 
@@ -65,6 +75,25 @@ def run_extract(path: Path) -> int:
     for page in document.pages:
         print(f"\n----- page {page.page_number} -----\n{page.text}")
     return 0
+
+
+def run_check_golden_set(path: Path, manifest: Path) -> int:
+    """Validate the golden set against the dataset manifest (no database)."""
+    with manifest.open(newline="", encoding="utf-8") as f:
+        doc_status = {row["doc_id"]: row["status"] for row in csv.DictReader(f)}
+    questions, errors = validate_golden_set(
+        path.read_text(encoding="utf-8").splitlines(), doc_status
+    )
+    for error in errors:
+        print(f"error: {error}", file=sys.stderr)
+
+    verified = sum(q.is_verified for q in questions)
+    by_type = Counter(q.type for q in questions)
+    by_author = Counter(q.written_by for q in questions)
+    print(f"{len(questions)} questions: {verified} verified, {len(questions) - verified} draft")
+    print("by type: " + (", ".join(f"{t}: {n}" for t, n in sorted(by_type.items())) or "-"))
+    print(f"written by owner: {by_author['owner']}, claude: {by_author['claude']}")
+    return 1 if errors else 0
 
 
 async def run(args: argparse.Namespace, settings: Settings) -> int:
@@ -110,6 +139,8 @@ def main(argv: Sequence[str] | None = None, settings: Settings | None = None) ->
     args = build_parser().parse_args(argv)
     if args.command == "extract":  # local-only: needs no settings or database
         return run_extract(args.path)
+    if args.command == "check-golden-set":
+        return run_check_golden_set(args.path, args.manifest)
     return asyncio.run(run(args, settings or get_settings()))
 
 

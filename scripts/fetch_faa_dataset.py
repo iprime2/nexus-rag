@@ -4,6 +4,12 @@ Usage (run on your own machine; this downloads public US-government PDFs):
 
     uv run python -m scripts.fetch_faa_dataset           # download into data/raw/faa/
     uv run python -m scripts.fetch_faa_dataset --pin     # also write checksums into the manifest
+    uv run python -m scripts.fetch_faa_dataset --offline --pin
+        # no downloads: check PDFs you saved from a browser into data/raw/faa/ and pin them
+
+faa.gov answers 403 to non-browser clients (seen from a cloud container and from a home Mac,
+2026-11-25). We do not disguise the script as a browser: that would work around the site's bot
+protection. Instead, download the files in a browser and use --offline.
 
 Why a manifest instead of committing the PDFs: the files are large and public. The manifest
 (URL + SHA-256) makes the corpus reproducible and detects when the FAA replaces a file
@@ -33,7 +39,7 @@ DELAY_S = 2.0  # be polite to a public government site
 TIMEOUT_S = 120.0  # some ACs are several hundred pages
 PDF_MAGIC = b"%PDF-"
 
-Outcome = Literal["downloaded", "skipped", "failed"]
+Outcome = Literal["downloaded", "found", "skipped", "failed"]
 
 
 @dataclass(frozen=True)
@@ -77,6 +83,33 @@ def file_name(entry: ManifestEntry) -> str:
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def check_local(entry: ManifestEntry, out_dir: Path) -> FetchResult:
+    """Offline mode: verify a file the owner saved by hand. Never touches the network."""
+    target = out_dir / file_name(entry)
+    if not target.exists():
+        return FetchResult(
+            entry, "failed", detail=f"missing {target.name}: download it from {entry.url}"
+        )
+
+    body = target.read_bytes()
+    if not body.startswith(PDF_MAGIC):
+        # "Save as" on an error page gives an HTML file with a .pdf name.
+        return FetchResult(entry, "failed", detail=f"{target.name} is not a PDF")
+
+    digest = _sha256(body)
+    if not entry.sha256:
+        return FetchResult(entry, "found", digest, "not pinned yet")
+    if digest != entry.sha256:
+        return FetchResult(
+            entry,
+            "failed",
+            digest,
+            "checksum mismatch: this is not the pinned file (new revision?). "
+            "Check the FAA AC index before re-pinning.",
+        )
+    return FetchResult(entry, "skipped", digest, "checksum matches")
 
 
 def fetch_one(entry: ManifestEntry, out_dir: Path, client: httpx.Client) -> FetchResult:
@@ -134,21 +167,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", type=Path, default=MANIFEST)
     parser.add_argument("--out", type=Path, default=OUTPUT_DIR)
     parser.add_argument(
-        "--pin", action="store_true", help="write checksums of new downloads into the manifest"
+        "--pin", action="store_true", help="write checksums of new files into the manifest"
+    )
+    parser.add_argument(
+        "--offline", action="store_true", help="don't download; check files already in --out"
     )
     args = parser.parse_args(argv)
 
     entries = read_manifest(args.manifest)
-    headers = {"User-Agent": USER_AGENT}
-    with httpx.Client(headers=headers, timeout=TIMEOUT_S, follow_redirects=True) as client:
-        results = fetch_all(entries, args.out, client)
+    if args.offline:
+        results = [check_local(e, args.out) for e in entries]
+    else:
+        headers = {"User-Agent": USER_AGENT}
+        with httpx.Client(headers=headers, timeout=TIMEOUT_S, follow_redirects=True) as client:
+            results = fetch_all(entries, args.out, client)
 
     for r in results:
         line = f"{r.outcome:<10} {r.entry.doc_id:<20} {r.sha256[:12] or '-':<12} {r.detail}"
         print(line.rstrip())
 
     if args.pin:
-        pinned = {r.entry.doc_id: r.sha256 for r in results if r.outcome == "downloaded"}
+        pinned = {r.entry.doc_id: r.sha256 for r in results if r.outcome in ("downloaded", "found")}
         write_manifest(
             args.manifest, [replace(e, sha256=pinned.get(e.doc_id, e.sha256)) for e in entries]
         )

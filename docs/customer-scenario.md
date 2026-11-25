@@ -68,7 +68,12 @@ uv run python -m scripts.fetch_faa_dataset --pin
 
 This downloads into `data/raw/faa/` (gitignored), rejects anything that isn't a PDF, and with `--pin` writes each file's SHA-256 into the manifest. Commit the pinned manifest: later runs then detect if the FAA replaced a file behind the same URL (which is how a new revision or editorial update shows up).
 
-> **Not yet verified:** the URLs come from web search results. The development sandbox blocks faa.gov, so the fetcher's logic is unit-tested with a mock HTTP transport, but no real download has run. The first local run is the verification step.
+**faa.gov blocks scripted downloads** (HTTP 403 from a cloud container and from a home Mac, 2026-11-25). We don't disguise the script as a browser, because that would work around the site's bot protection. Instead:
+1. Open each URL from the manifest in a browser and save the PDF into `data/raw/faa/` under the name the script expects (`AC 43-9D` → `AC_43-9D.pdf`; spaces become `_`).
+2. Check and pin them without downloading:
+   ```bash
+   uv run python -m scripts.fetch_faa_dataset --offline --pin
+   ```
 
 **Open question for the owner:** AC 43-9D also has an "editorial update" PDF on faa.gov. Which file does the AC index mark as current? It's a good real example of why checksums are pinned.
 

@@ -32,7 +32,7 @@ _Baseline set 2026-11-25 (mentor review): 32 modules, 0 owner-written. Owner con
 | `core/readiness.py` | Concurrent dependency checks with timeouts | #8 (1.6) | Claude | — | not yet |
 | `core/redis.py` | Redis client factory | #8 (1.6) | Claude | — | not yet |
 | `core/tenancy.py` | `TenantContext` | #10 (2.1) | Claude | — | not yet |
-| `cli.py` | Operator CLI: tenants, keys, `extract` | #10 (2.1), #12 (W1) | Claude | — | not yet |
+| `cli.py` | Operator CLI: tenants, keys, `extract`, `check-golden-set` | #10 (2.1), #12 (W1), PR E | Claude | — | not yet |
 
 ## Auth (`app/auth/`)
 
@@ -66,6 +66,18 @@ _Baseline set 2026-11-25 (mentor review): 32 modules, 0 owner-written. Owner con
 | ↳ `find_repeated_lines()` | Header/footer detection | #12 (W1) | Claude (typed) | **spec**: repetition across pages + 4 test cases (refinements by Claude) | not yet |
 | `ingestion/extraction/pipeline.py` | Extract → clean → guard; `NO_TEXT_LAYER` | #12 (W1) | Claude | — | not yet |
 
+## Evaluation (`app/evaluation/`)
+
+| Module | What it does | Introduced | Implemented by | Owner's role | Can explain |
+|---|---|---|---|---|---|
+| `evaluation/golden_set.py` | Golden-set format (pydantic) and checker: line-numbered errors, duplicates, unknown or cancelled documents | PR E | Claude | **design decisions**: Claude drafts / owner verifies + writes ≥⅓ (E1); checker now (E2); starting metrics (E3) | not yet |
+
+## Scripts and datasets
+
+| Module | What it does | Introduced | Implemented by | Owner's role | Can explain |
+|---|---|---|---|---|---|
+| `scripts/fetch_faa_dataset.py` | Download or (`--offline`) check the FAA PDFs; pin and verify SHA-256 | #15 (PR C), PR E | Claude | **decisions**: FAA dataset; browser download + offline mode instead of disguising the script | not yet |
+
 ## Storage (`app/storage/`)
 
 | Module | What it does | Introduced | Implemented by | Owner's role | Can explain |
@@ -79,5 +91,5 @@ _Baseline set 2026-11-25 (mentor review): 32 modules, 0 owner-written. Owner con
 |---|---|
 | Owner can explain (`yes`) | 1 function (`retry_dead_letter`) |
 | `partly` | 0 |
-| `not yet` | 32 modules |
+| `not yet` | 34 modules |
 | Owner-specified or owner-designed | 2 functions |
